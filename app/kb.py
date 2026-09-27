@@ -145,6 +145,10 @@ class CalcParams(BaseModel):
     fitr_cash: CalcParam | None = None
     # trade goods valuation: market | disputed
     trade_valuation: CalcParam | None = None
+    # whether the fixed 2.5% zakat applies to trade goods: fixed | no_fixed_zakat | disputed
+    trade_goods: CalcParam | None = None
+    # zakat on wealth of a minor: obligatory | not_obligatory | disputed
+    child_wealth: CalcParam | None = None
 
 
 class CloneMeta(BaseModel):
@@ -156,6 +160,8 @@ class CloneMeta(BaseModel):
     disclaimer_ar: str
     methodology_ar: list[str] = Field(default_factory=list)
     source_priority_ar: list[str] = Field(default_factory=list)
+    # optional description of the kinds of text the dataset contains (book text, transcript, grading...)
+    text_layers_ar: dict[str, str] = Field(default_factory=dict)
     calc_params: CalcParams = Field(default_factory=CalcParams)
 
 
