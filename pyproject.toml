@@ -1,22 +1,29 @@
-[tool.poetry]
+[project]
 name = "zakat-ai"
 version = "0.1.0"
 description = "Source-backed, multi-methodology zakat fiqh assistant (Albani, Ibn Uthaymeen, Ibn Baz, Maliki, comparative)"
-authors = ["alienouur <alienouur@gmail.com>"]
-package-mode = false
-packages = [{ include = "app" }]
+authors = [{ name = "alienouur", email = "alienouur@gmail.com" }]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "fastapi[standard]>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2.7,<3",
+    "rank-bm25>=0.2.2,<0.3",
+    "httpx>=0.27,<1",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-fastapi = { version = ">=0.115,<1", extras = ["standard"] }
-uvicorn = { version = ">=0.30,<1", extras = ["standard"] }
-pydantic = ">=2.7,<3"
-rank-bm25 = ">=0.2.2,<0.3"
-httpx = ">=0.27,<1"
+[tool.poetry]
+package-mode = false
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.package-data]
+app = ["static/*"]
 
 [tool.ruff]
 line-length = 140
