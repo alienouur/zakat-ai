@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from .comparative import CLONE_ORDER, Comparative
 from .kb import KnowledgeBase
+from .llm import GeminiRephraser
 from .pipeline import SKIPPED, Pipeline, normalize_currency
 from .prices import market_snapshot
 from .retrieval import Retriever
@@ -26,6 +27,7 @@ kb = KnowledgeBase()
 retriever = Retriever(kb)
 pipeline = Pipeline(kb, retriever)
 comparative = Comparative(kb, retriever)
+rephraser = GeminiRephraser()
 
 
 class AskRequest(BaseModel):
@@ -34,16 +36,19 @@ class AskRequest(BaseModel):
     topic: str | None = None
     answers: dict = Field(default_factory=dict)
     manual_prices: dict | None = None  # {"gold_per_gram": x, "silver_per_gram": y}
+    use_llm: bool = True  # Gemini restatement of the composed answer (never changes the ruling/records)
 
 
 class CompareRequest(BaseModel):
     message: str
     topic: str | None = None
+    use_llm: bool = True
 
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "errors": kb.errors, "stats": kb.stats()}
+    return {"ok": True, "errors": kb.errors, "stats": kb.stats(),
+            "llm": {"enabled": rephraser.enabled, "model": rephraser.model if rephraser.enabled else None}}
 
 
 @app.get("/api/clones")
@@ -142,12 +147,18 @@ async def ask(req: AskRequest) -> dict:
             except Exception as e:
                 market_error = str(e)
     result = pipeline.answer(prepared, req.message, market_data, market_error)
-    return result.to_dict(meta)
+    data = result.to_dict(meta)
+    if req.use_llm:
+        data["narrative"] = (await rephraser.narrate_answer(req.message, data)).to_dict()
+    return data
 
 
 @app.post("/api/compare")
-def compare(req: CompareRequest) -> dict:
-    return comparative.compare(req.message, req.topic)
+async def compare(req: CompareRequest) -> dict:
+    data = comparative.compare(req.message, req.topic)
+    if req.use_llm:
+        data["narrative"] = (await rephraser.narrate_compare(req.message, data)).to_dict()
+    return data
 
 
 if STATIC_DIR.exists():

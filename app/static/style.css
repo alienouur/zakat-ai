@@ -60,6 +60,7 @@ input, select, textarea { font: inherit; border: 1px solid var(--line); border-r
 .badge.partially_verified { background: var(--warn-soft); color: var(--warn); border-color: #f1d3a6; }
 .badge.unverified { background: var(--danger-soft); color: var(--danger); border-color: #f0bcbc; }
 .badge.topic { background: #eef; color: #334; }
+.badge.llm { background: #eee9ff; color: #4a3b8a; border-color: #cfc5f2; font-family: monospace; }
 
 .disclaimer { font-size: .85rem; color: var(--warn); background: var(--warn-soft); border: 1px solid #f1d3a6; border-radius: 8px; padding: .4rem .7rem; margin-bottom: .6rem; }
 .notes { margin: .4rem 0; }
@@ -78,6 +79,8 @@ input, select, textarea { font: inherit; border: 1px solid var(--line); border-r
 .section.conclusion { border-color: var(--ink); font-weight: 600; }
 .section.note { border-color: var(--warn); background: var(--warn-soft); }
 .section.related { border-color: var(--line); color: var(--muted); }
+.section.narrative { border-color: #6b57c9; background: #f7f5ff; line-height: 1.8; }
+.section.narrative .hint { margin-top: .4rem; }
 .section .rec { font-size: .78rem; color: var(--muted); }
 
 .calc { margin-top: .6rem; border: 1px solid #bfdcc5; border-radius: 8px; padding: .6rem .8rem; background: #f3faf4; }

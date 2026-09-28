@@ -127,6 +127,15 @@
 
   const fmt = (x) => (typeof x === "number" ? x.toLocaleString("en-US", { maximumFractionDigits: 2 }) : x);
 
+  function renderNarrative(n) {
+    if (!n?.used || !n.text) return null;
+    return el("div", { class: "section narrative" }, [
+      el("h4", {}, ["صياغة مساعدة ", el("span", { class: "badge llm", text: n.model || "LLM" })]),
+      el("p", { text: n.text }),
+      el("div", { class: "hint", text: "هذه إعادة صياغة آلية مقيّدة بالسجلات أدناه ولا تُضيف عليها؛ المعتمد هو الأقسام والمصادر التالية." }),
+    ]);
+  }
+
   function renderSections(sections) {
     return sections.map((s) => el("div", { class: `section ${s.kind}` }, [
       el("h4", { text: s.title }),
@@ -207,6 +216,8 @@
         msg.append(el("p", { class: "hint", text: "يمكنك اختيار الموضوع من قائمة «الموضوع» ثم إعادة الإرسال." }));
       }
     } else {
+      const narrative = renderNarrative(data.narrative);
+      if (narrative) msg.append(narrative);
       msg.append(...renderSections(data.sections || []));
       const calc = renderCalculation(data.calculation);
       if (calc) msg.append(calc);
@@ -222,6 +233,8 @@
     if (data.topic) meta.append(el("span", { class: "badge topic", text: data.topic.label_ar }));
     msg.append(meta);
     if (data.disclaimer_ar) msg.append(el("div", { class: "disclaimer", text: data.disclaimer_ar }));
+    const narrative = renderNarrative(data.narrative);
+    if (narrative) msg.append(narrative);
 
     const table = el("table", { class: "cmp-table" }, [
       el("thead", {}, [el("tr", {}, [el("th", { text: "المنهج" }), el("th", { text: "الحكم / الرأي كما ورد في مصادره" }), el("th", { text: "المصدر والتحقق" })])]),
