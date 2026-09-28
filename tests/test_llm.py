@@ -39,6 +39,12 @@ def test_validate_allows_preference_words_present_in_source():
     assert validate("نقل الشيخ أن الراجح عنده أن الحلي لا زكاة فيه.", ctx) is None
 
 
+def test_validate_accepts_digits_for_numbers_spelled_out_in_source():
+    ctx = CONTEXT + "\n[قول الشيخ] «زكاة الدراهم واحد في الأربعين، وزكاة الألف خمسة وعشرون»"
+    assert validate("أي 1 من 40، فزكاة 1,000 هي 25، و10000 × 2.5% = 250.00", ctx) is None
+    assert validate("أي 1 من 40، وزكاة الألف 26", ctx) == "unknown_number:26"
+
+
 def test_answer_context_includes_sections_and_citations():
     ctx = answer_context("س", {
         "topic": {"label_ar": "النقد"}, "clone": {"name_ar": "محاكاة"}, "answers": {"amount": 5, "_want_calc": True},

@@ -5,7 +5,7 @@ deterministic sections/citations/calculation produced by the pipeline and may on
 them. Its output is validated (no new numbers, URLs, preference language, or impersonation);
 on any violation, network failure, or missing key the template answer is served unchanged.
 
-Env: GEMINI_API_KEY (required to enable), GEMINI_MODEL (default gemini-2.5-flash).
+Env: GEMINI_API_KEY (required to enable), GEMINI_MODEL (default gemini-3.8-flash).
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import httpx
 from .normalize import normalize
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.8-flash"
 TIMEOUT_S = 25.0
 MAX_OUTPUT_CHARS = 4000
 
@@ -46,17 +46,42 @@ _URL = re.compile(r"https?://\S+")
 _NUM = re.compile(r"\d+(?:[.,٬،]\d+)*")
 _AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
+# spelled-out numbers in classical texts ("واحد في الأربعين", "خمسة وعشرين") count as present in the context
+_UNITS = {"واحد": 1, "واحده": 1, "اثنان": 2, "اثنين": 2, "ثلاث": 3, "ثلاثه": 3, "اربع": 4, "اربعه": 4, "خمس": 5, "خمسه": 5,
+          "ست": 6, "سته": 6, "سبع": 7, "سبعه": 7, "ثمان": 8, "ثمانيه": 8, "تسع": 9, "تسعه": 9, "عشر": 10, "عشره": 10}
+_TENS = {"عشرين": 20, "عشرون": 20, "ثلاثين": 30, "ثلاثون": 30, "اربعين": 40, "اربعون": 40, "خمسين": 50, "خمسون": 50,
+         "ستين": 60, "ستون": 60, "سبعين": 70, "سبعون": 70, "ثمانين": 80, "ثمانون": 80, "تسعين": 90, "تسعون": 90}
+_BIG = {"مئه": 100, "مائه": 100, "مئتين": 200, "مائتين": 200, "الف": 1000, "الفين": 2000, "مليون": 1_000_000}
+_WORD_NUM = re.compile(
+    r"(?:^|\s)(?:و|ب|ل|ف)?(?:ال)?(" + "|".join(sorted({**_UNITS, **_TENS, **_BIG}, key=len, reverse=True)) + r")(?=\s|$)"
+)
 
-def _numbers(text: str) -> set[str]:
+
+def _spelled_numbers(text: str) -> set[str]:
+    n = normalize(text)
+    words = [m.group(1) for m in _WORD_NUM.finditer(n)]
+    out: set[str] = set()
+    for i, w in enumerate(words):
+        val = _UNITS.get(w) or _TENS.get(w) or _BIG.get(w)
+        out.add(str(val))
+        if w in _UNITS and i + 1 < len(words) and words[i + 1] in _TENS:  # خمسة وعشرين
+            out.add(str(_UNITS[w] + _TENS[words[i + 1]]))
+    return out
+
+
+def _canon(tok: str) -> str:
+    plain = re.sub(r"[,٬،]", "", tok)  # 10,000 -> 10000
+    return plain.rstrip("0").rstrip(".") if "." in plain else plain  # 250.00 -> 250
+
+
+def _numbers(text: str, with_parts: bool = False) -> set[str]:
     out: set[str] = set()
     for m in _NUM.finditer(text.translate(_AR_DIGITS)):
         tok = m.group(0)
-        out.add(tok)
-        out.add(re.sub(r"[,٬،]", "", tok))  # 10,000 -> 10000
-        if "." in tok:
-            out.add(tok.rstrip("0").rstrip("."))  # 250.0 -> 250
-        for part in re.split(r"[.,٬،]", tok):  # years / verse numbers inside ranges
-            out.add(part)
+        out.add(_canon(tok))
+        if with_parts:  # "85,595" in a source line also vouches for 85 and 595
+            for part in re.split(r"[.,٬،]", tok):
+                out.add(part.lstrip("0") or "0")
     return out
 
 
@@ -76,7 +101,7 @@ def validate(output: str, context: str) -> str | None:
     for url in _URL.findall(output):
         if url.rstrip(".،,") not in ctx_urls:
             return "unknown_url"
-    allowed = _numbers(context)
+    allowed = _numbers(context, with_parts=True) | _spelled_numbers(context)
     for num in _numbers(output):
         if num not in allowed:
             return f"unknown_number:{num}"
@@ -158,7 +183,7 @@ class GeminiRephraser:
         body = {
             "system_instruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500},
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096},  # thinking models spend tokens on reasoning too
         }
         async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
             r = await client.post(GEMINI_URL.format(model=self.model), json=body, headers={"x-goog-api-key": self.api_key})
@@ -166,7 +191,9 @@ class GeminiRephraser:
         cands = r.json().get("candidates") or []
         if not cands:
             raise RuntimeError("no candidates")
-        return "".join(p.get("text", "") for p in cands[0].get("content", {}).get("parts", []))
+        if cands[0].get("finishReason") not in (None, "STOP"):
+            raise RuntimeError(f"finish_reason={cands[0].get('finishReason')}")
+        return "".join(p.get("text", "") for p in cands[0].get("content", {}).get("parts", []) if not p.get("thought"))
 
     async def _narrate(self, system: str, context: str) -> Narrative:
         if not self.enabled:
