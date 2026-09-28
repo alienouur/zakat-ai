@@ -82,7 +82,8 @@ _NUMBER = re.compile(r"(\d[\d,\.]*)\s*(ألف|الف|مليون|k|m)?", re.IGNOR
 def extract_numbers(text: str) -> list[float]:
     """Return numeric amounts found in the text (Arabic digits are normalised first)."""
     out: list[float] = []
-    for raw, unit in _NUMBER.findall(normalize(text)):
+    digits_only = (text or "").translate(_CHAR_MAP).replace("٬", ",").replace("٫", ".")
+    for raw, unit in _NUMBER.findall(digits_only):
         raw = raw.replace(",", "").rstrip(".")
         if not raw:
             continue

@@ -59,7 +59,7 @@ async def main() -> None:
                     tasks.append(check(client, s.url, s.quote))
         results = await asyncio.gather(*tasks)
     bad = 0
-    for (rid, url), res in zip(labels, results):
+    for (rid, url), res in zip(labels, results, strict=True):
         if not res.startswith("OK"):
             bad += 1
         print(f"{res:22} {rid:45} {url[:90]}")

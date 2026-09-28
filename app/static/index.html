@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f6b5c" />
+  <title>فقه الزكاة — محاكاة المناهج اعتمادًا على المصادر الموثقة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">ز</div>
+      <div>
+        <h1>فقه الزكاة</h1>
+        <p class="sub">محاكاة مناهج فقهية اعتمادًا على مصادر موثقة — ليس مفتيًا ولا العالم نفسه</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-sources" class="ghost" type="button">مصادر المنهج</button>
+      <button id="btn-reset" class="ghost" type="button">محادثة جديدة</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="side">
+      <h2>اختر المنهج</h2>
+      <div id="clones" class="clones" role="tablist"></div>
+      <div id="clone-info" class="clone-info"></div>
+
+      <details class="prices">
+        <summary>أسعار الذهب والفضة (يدويًّا)</summary>
+        <p class="hint">يُستخدم السعر المباشر إن توفر ويُذكر مصدره وتاريخه. إن فشل جلبه، أدخل سعر الجرام بعملتك هنا؛ ولا يُستعمل سعر قديم بصمت.</p>
+        <label>سعر جرام الذهب <input id="gold-price" type="number" step="any" min="0" inputmode="decimal" /></label>
+        <label>سعر جرام الفضة <input id="silver-price" type="number" step="any" min="0" inputmode="decimal" /></label>
+        <button id="btn-market" class="ghost small" type="button">جلب السعر المباشر (USD)</button>
+        <div id="market-info" class="hint"></div>
+      </details>
+    </aside>
+
+    <section class="chat">
+      <div id="thread" class="thread" aria-live="polite">
+        <div class="msg system welcome">
+          <h3>اسأل عن الزكاة فقط</h3>
+          <p>سيحدد النظام نوع المسألة، ويسألك فقط عما يغيّر الحكم أو الحساب، ثم يعرض ما وجده في مصادر المنهج المختار مع التوثيق لكل حكم.</p>
+          <ul class="features">
+            <li>أسئلة توضيحية قبل الحكم</li>
+            <li>مصدر موثق لكل جواب</li>
+            <li>حساب بأسعار حيّة</li>
+            <li>مقارنة بين المناهج</li>
+          </ul>
+          <p class="hint">أمثلة يمكنك النقر عليها:</p>
+          <div id="welcome-examples"></div>
+          <p class="hint scope-note">الأسئلة التي لا تتعلق بالزكاة لا يجيب عنها النظام.</p>
+        </div>
+      </div>
+
+      <form id="ask-form" class="composer">
+        <select id="topic" title="الموضوع (اختياري)">
+          <option value="">الموضوع: تلقائي</option>
+        </select>
+        <textarea id="message" rows="2" placeholder="سؤالك…" required></textarea>
+        <button id="btn-send" type="submit">إرسال</button>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="sources-dialog">
+    <div class="dialog-head">
+      <h3 id="sources-title">مصادر المنهج</h3>
+      <button id="btn-close-sources" class="ghost small" type="button">إغلاق</button>
+    </div>
+    <div id="sources-body"></div>
+  </dialog>
+
+  <template id="tpl-question">
+    <div class="q">
+      <div class="q-text"></div>
+      <div class="q-why hint"></div>
+      <div class="q-input"></div>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

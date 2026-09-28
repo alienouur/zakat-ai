@@ -17,7 +17,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-KB_ROOT = Path(__file__).resolve().parent.parent / "zakat_knowledge_base"
+KB_ROOT = next(
+    (p for p in (Path(__file__).resolve().parent.parent / "zakat_knowledge_base", Path.cwd() / "zakat_knowledge_base") if p.is_dir()),
+    Path(__file__).resolve().parent.parent / "zakat_knowledge_base",
+)
 
 CloneId = Literal["albani", "ibn_uthaymeen", "ibn_baz", "maliki", "comparative"]
 VerificationStatus = Literal["verified", "partially_verified", "unverified"]
@@ -108,7 +111,7 @@ class Record(BaseModel):
     language: str = "ar"
 
     @model_validator(mode="after")
-    def _check_verified_has_url_or_page(self) -> "Record":
+    def _check_verified_has_url_or_page(self) -> Record:
         if self.verification_status == "verified":
             ok = any(s.url or s.page for s in self.sources)
             if not ok:
