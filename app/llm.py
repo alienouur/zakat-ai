@@ -175,12 +175,12 @@ def _env(name: str, default: str = "") -> str:
     """Process environment first, then a git-ignored `.env` at the project root."""
     if name in os.environ:
         return os.environ[name]
-    dotenv = Path(__file__).resolve().parent.parent / ".env"
-    if dotenv.is_file():
-        for line in dotenv.read_text(encoding="utf-8").splitlines():
-            k, sep, v = line.strip().partition("=")
-            if sep and k.strip() == name:
-                return v.strip().strip("'\"")
+    for dotenv in (Path(__file__).resolve().parent.parent / ".env", Path.cwd() / ".env"):
+        if dotenv.is_file():
+            for line in dotenv.read_text(encoding="utf-8").splitlines():
+                k, sep, v = line.strip().partition("=")
+                if sep and k.strip() == name:
+                    return v.strip().strip("'\"")
     return default
 
 
