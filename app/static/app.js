@@ -48,6 +48,7 @@
       ]);
       box.append(btn);
     }
+    box.querySelector(".clone-btn.active")?.scrollIntoView({ block: "nearest", inline: "center" });
     renderCloneInfo();
   }
 
@@ -241,12 +242,12 @@
     ]);
     const tbody = el("tbody");
     for (const f of data.findings) {
-      const ruling = el("td", {}, [el("div", { text: f.ruling || "—" })]);
+      const ruling = el("td", { "data-label": "الحكم / الرأي" }, [el("div", { text: f.ruling || "—" })]);
       if (f.statement) ruling.append(el("div", { class: "stmt", text: `قول: ${f.statement}` }));
       if (f.is_mashhur === true) ruling.append(el("div", { class: "hint", text: "هذا هو المشهور في المذهب." }));
       if (f.other_opinions?.length) ruling.append(el("div", { class: "hint" }, [el("strong", { text: "أقوال أخرى: " }), f.other_opinions.join(" | ")]));
       if (f.reason_for_difference) ruling.append(el("div", { class: "hint", text: `سبب الاختلاف (كما في السجل): ${f.reason_for_difference}` }));
-      const src = el("td");
+      const src = el("td", { "data-label": "المصدر والتحقق" });
       if (f.found) {
         src.append(badge(f.verification_status || "unverified"));
         if (f.citation?.lines) src.append(el("div", { class: "src" }, f.citation.lines.map((l) => el("div", { text: l }))));
@@ -255,7 +256,7 @@
       } else {
         src.append(el("span", { class: "hint", text: "لا سجل موثق كافٍ في مصادر هذا المنهج." }));
       }
-      tbody.append(el("tr", {}, [el("td", {}, [el("strong", { text: f.label })]), ruling, src]));
+      tbody.append(el("tr", {}, [el("td", { class: "cmp-clone" }, [el("strong", { text: f.label })]), ruling, src]));
     }
     table.append(tbody);
     msg.append(table);
