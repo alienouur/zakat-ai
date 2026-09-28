@@ -8,7 +8,7 @@ packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-fastapi = ">=0.115,<1"
+fastapi = { version = ">=0.115,<1", extras = ["standard"] }
 uvicorn = { version = ">=0.30,<1", extras = ["standard"] }
 pydantic = ">=2.7,<3"
 rank-bm25 = ">=0.2.2,<0.3"

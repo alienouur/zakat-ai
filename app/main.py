@@ -45,6 +45,11 @@ class CompareRequest(BaseModel):
     use_llm: bool = True
 
 
+@app.get("/healthz")
+def healthz() -> dict:
+    return {"status": "ok"}
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "errors": kb.errors, "stats": kb.stats(),
