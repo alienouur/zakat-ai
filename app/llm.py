@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -170,10 +171,23 @@ class Narrative:
         return self.__dict__.copy()
 
 
+def _env(name: str, default: str = "") -> str:
+    """Process environment first, then a git-ignored `.env` at the project root."""
+    if name in os.environ:
+        return os.environ[name]
+    dotenv = Path(__file__).resolve().parent.parent / ".env"
+    if dotenv.is_file():
+        for line in dotenv.read_text(encoding="utf-8").splitlines():
+            k, sep, v = line.strip().partition("=")
+            if sep and k.strip() == name:
+                return v.strip().strip("'\"")
+    return default
+
+
 class GeminiRephraser:
     def __init__(self, api_key: str | None = None, model: str | None = None):
-        self.api_key = api_key if api_key is not None else os.environ.get("GEMINI_API_KEY", "")
-        self.model = model or os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+        self.api_key = api_key if api_key is not None else _env("GEMINI_API_KEY")
+        self.model = model or _env("GEMINI_MODEL", DEFAULT_MODEL)
 
     @property
     def enabled(self) -> bool:
