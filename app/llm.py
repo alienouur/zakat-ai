@@ -21,6 +21,7 @@ from .normalize import normalize
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 DEFAULT_MODEL = "gemini-3.8-flash"
 TIMEOUT_S = 25.0
+SCOPE_TIMEOUT_S = 8.0
 MAX_OUTPUT_CHARS = 4000
 
 SYSTEM_AR = """أنت طبقة صياغة لغوية فقط في نظام فقه زكاة قائم على مصادر متحقق منها. ستُعطى جوابًا مركّبًا مسبقًا من سجلات موثقة (أقسام: الحكم كما ورد في المصدر، الدليل، قول العالم/نص المتن، التطبيق على حالة المستخدم، الحساب، الخلاصة) مع سؤال المستخدم. مهمتك: إعادة عرض هذا المضمون نفسه بعربية واضحة ومترابطة يفهمها المستخدم بسهولة.
@@ -40,6 +41,10 @@ SYSTEM_AR = """أنت طبقة صياغة لغوية فقط في نظام فقه
 SYSTEM_COMPARE_AR = SYSTEM_AR + """
 هذه مادة مقارنة بين أربعة مناهج (الألباني، ابن عثيمين، ابن باز، المذهب المالكي). اعرض ما وجده كل منهج في مصادره على حدة بنفس الترتيب، ثم نقاط الاتفاق والاختلاف وسبب الاختلاف إن نُصّ عليه فقط. لا تختر رأيًا ولا تُلمّح إلى أفضلية.
 """
+
+SYSTEM_SCOPE_AR = """أنت مصنّف نطاق لنظام متخصص في فقه الزكاة فقط. ستُعطى رسالة من مستخدم. قرّر هل الرسالة سؤال أو طلب يتعلق بالزكاة الشرعية (أحكامها، شروطها، نصابها، حولها، حسابها، أنواع الأموال الزكوية كالنقود والذهب والتجارة والأسهم والديون والزروع والأنعام والعملات الرقمية، زكاة الفطر، مصارف الزكاة ومستحقيها، أقوال العلماء فيها) أم لا.
+اعتبر الرسالة متعلقة بالزكاة أيضًا إذا كانت وصفًا لمال أو دخل أو ممتلكات يبدو أن صاحبها يسأل عن زكاتها ولو لم يذكر كلمة الزكاة صريحًا.
+أجب بكلمة واحدة فقط دون أي شرح: ZAKAT إذا كانت متعلقة بالزكاة، أو OTHER إذا لم تكن."""
 
 _PREFERENCE = ("الرأي الصحيح", "الأصح", "الراجح", "الأرجح", "الصواب هو", "القول الصحيح", "الأقوى")
 _IMPERSONATION = re.compile(r"(^|\s)أنا\s+(الشيخ|الإمام|ابن|الألباني|العثيمين|باز)")
@@ -193,13 +198,13 @@ class GeminiRephraser:
     def enabled(self) -> bool:
         return bool(self.api_key)
 
-    async def _generate(self, system: str, user: str) -> str:
+    async def _generate(self, system: str, user: str, *, max_tokens: int = 4096, timeout: float = TIMEOUT_S) -> str:
         body = {
             "system_instruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096},  # thinking models spend tokens on reasoning too
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tokens},  # thinking models spend tokens on reasoning too
         }
-        async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(GEMINI_URL.format(model=self.model), json=body, headers={"x-goog-api-key": self.api_key})
             r.raise_for_status()
         cands = r.json().get("candidates") or []
@@ -220,6 +225,21 @@ class GeminiRephraser:
         if problem:
             return Narrative(used=False, reason=f"rejected: {problem}", model=self.model)
         return Narrative(used=True, text=text, model=self.model)
+
+    async def classify_scope(self, message: str) -> bool | None:
+        """True = zakat question, False = something else, None = model unavailable/undecided (caller falls back to rules)."""
+        if not self.enabled or not message.strip():
+            return None
+        try:
+            text = await self._generate(SYSTEM_SCOPE_AR, "رسالة المستخدم:\n" + message.strip()[:1500], max_tokens=1024, timeout=SCOPE_TIMEOUT_S)
+        except Exception:
+            return None
+        verdict = text.strip().upper()
+        if "ZAKAT" in verdict and "OTHER" not in verdict:
+            return True
+        if "OTHER" in verdict and "ZAKAT" not in verdict:
+            return False
+        return None
 
     async def narrate_answer(self, message: str, data: dict) -> Narrative:
         return await self._narrate(SYSTEM_AR, answer_context(message, data))

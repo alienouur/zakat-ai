@@ -17,6 +17,7 @@ from .llm import GeminiRephraser
 from .pipeline import SKIPPED, Pipeline, normalize_currency
 from .prices import market_snapshot
 from .retrieval import Retriever
+from .scope import ScopeDecision, ScopeGuard
 from .topics import GROUP_LABELS, TOPICS
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -28,6 +29,7 @@ retriever = Retriever(kb)
 pipeline = Pipeline(kb, retriever)
 comparative = Comparative(kb, retriever)
 rephraser = GeminiRephraser()
+scope_guard = ScopeGuard(rephraser)
 
 
 class AskRequest(BaseModel):
@@ -117,6 +119,18 @@ async def market(currency: str = "USD") -> dict:
         raise HTTPException(503, f"market data unavailable: {e}") from e
 
 
+def _scope_response(decision: ScopeDecision, clone_id: str, name_ar: str, disclaimer_ar: str = "") -> dict:
+    """Uniform payload for blocked requests: nothing is retrieved, priced, or narrated."""
+    return {
+        "stage": "out_of_scope",
+        "clone": {"id": clone_id, "name_ar": name_ar, "disclaimer_ar": disclaimer_ar},
+        "topic": None,
+        "scope": decision.payload(),
+        "answers": {}, "questions": [], "sections": [], "citations": [], "calculation": None,
+        "not_found": False, "notes": [], "records": [],
+    }
+
+
 @app.post("/api/ask")
 async def ask(req: AskRequest) -> dict:
     answers = dict(req.answers)
@@ -124,11 +138,14 @@ async def ask(req: AskRequest) -> dict:
         answers["currency"] = normalize_currency(answers["currency"])
         if answers["currency"] is None:
             answers.pop("currency")
-    prepared = pipeline.prepare(req.clone, req.message, req.topic, answers)
     meta = kb.meta.get(req.clone)
+    decision = await scope_guard.classify(req.message, topic_hint=bool(req.topic), continuation=bool(answers))
+    if decision.blocked:
+        return _scope_response(decision, req.clone, meta.name_ar if meta else req.clone, meta.disclaimer_ar if meta else "")
+    prepared = pipeline.prepare(req.clone, req.message, req.topic, answers)
     if prepared.topic is None:
         prepared.stage = "clarify"
-        prepared.notes.append("لم أتعرف على موضوع السؤال؛ اختر الموضوع من القائمة أو أعد صياغة السؤال بذكر نوع المال.")
+        prepared.notes.append("سؤالك عن الزكاة لكن لم أتعرف على نوع المال أو المسألة؛ اختر الموضوع من القائمة أو أعد صياغة السؤال بذكر نوع المال.")
         return prepared.to_dict(meta)
     if prepared.stage == "clarify":
         return prepared.to_dict(meta)
@@ -160,6 +177,9 @@ async def ask(req: AskRequest) -> dict:
 
 @app.post("/api/compare")
 async def compare(req: CompareRequest) -> dict:
+    decision = await scope_guard.classify(req.message, topic_hint=bool(req.topic))
+    if decision.blocked:
+        return _scope_response(decision, "comparative", "المقارن في فقه الزكاة")
     data = comparative.compare(req.message, req.topic)
     if req.use_llm:
         data["narrative"] = (await rephraser.narrate_compare(req.message, data)).to_dict()

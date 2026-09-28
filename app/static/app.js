@@ -198,6 +198,27 @@
     container.append(form);
   }
 
+  // ---------------------------------------------------------------- scope guard (non-zakat requests)
+  function exampleChips(examples) {
+    return el("div", { class: "chips" }, examples.map((ex) => el("button", { type: "button", class: "chip", text: ex, onclick: () => {
+      $("#message").value = ex;
+      $("#ask-form").requestSubmit();
+    } })));
+  }
+
+  function renderScope(data) {
+    const s = data.scope || {};
+    const msg = el("div", { class: `msg bot scope ${s.kind || ""}` });
+    msg.append(el("div", { class: "meta" }, [el("strong", { text: data.clone?.name_ar || "" }), el("span", { class: "badge scope", text: s.kind === "greeting" ? "ترحيب" : "خارج نطاق الزكاة" })]));
+    msg.append(el("h4", { class: "scope-title", text: s.title_ar || "هذا النظام متخصص في فقه الزكاة فقط" }));
+    msg.append(el("p", { text: s.message_ar || "" }));
+    if (s.examples_ar?.length) {
+      msg.append(el("div", { class: "hint", text: "أمثلة يمكنك النقر عليها:" }));
+      msg.append(exampleChips(s.examples_ar));
+    }
+    return msg;
+  }
+
   // ---------------------------------------------------------------- answer rendering
   function renderAnswer(data) {
     const msg = el("div", { class: "msg bot" });
@@ -293,12 +314,17 @@
       let data;
       if (state.clone === "comparative") {
         data = await api("/api/compare", { message: state.message, topic: state.topic || null });
-        spinner.replaceWith(renderCompare(data));
+        spinner.replaceWith(data.stage === "out_of_scope" ? renderScope(data) : renderCompare(data));
       } else {
         data = await api("/api/ask", { clone: state.clone, message: state.message, topic: state.topic || null, answers: state.answers, manual_prices: manualPrices() });
-        state.answers = { ...state.answers, ...(data.answers || {}) };
-        if (data.topic && !state.topic) state.topic = data.topic.id;
-        spinner.replaceWith(renderAnswer(data));
+        if (data.stage === "out_of_scope") {
+          state.answers = {};
+          spinner.replaceWith(renderScope(data));
+        } else {
+          state.answers = { ...state.answers, ...(data.answers || {}) };
+          if (data.topic && !state.topic) state.topic = data.topic.id;
+          spinner.replaceWith(renderAnswer(data));
+        }
       }
     } catch (err) {
       spinner.replaceWith(el("div", { class: "msg error", text: `تعذّر الحصول على الإجابة: ${err.message}` }));
@@ -367,6 +393,14 @@
   $("#btn-close-sources").addEventListener("click", () => $("#sources-dialog").close());
 
   // ---------------------------------------------------------------- boot
+  const WELCOME_EXAMPLES = [
+    "عندي 10,000 دولار مدخرة منذ سنة، كم زكاتها؟",
+    "هل في حلي المرأة الملبوس زكاة؟",
+    "لي دين عند شخص منذ سنتين، هل أزكيه؟",
+    "هل يجوز إخراج زكاة الفطر نقدًا؟",
+  ];
+  $("#welcome-examples")?.append(exampleChips(WELCOME_EXAMPLES));
+
   (async () => {
     try {
       [state.clones, state.topics] = await Promise.all([api("/api/clones"), api("/api/topics")]);

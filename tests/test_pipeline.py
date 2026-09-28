@@ -190,7 +190,7 @@ def test_no_calculation_without_prices(client):
 
 
 def test_unknown_topic_returns_clarify(client):
-    d = client.post("/api/ask", json={"clone": "albani", "message": "مرحبا"}).json()
+    d = client.post("/api/ask", json={"clone": "albani", "message": "هل تجب الزكاة في هذا؟"}).json()
     assert d["stage"] == "clarify"
     assert d["topic"] is None
 
