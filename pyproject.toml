@@ -3,7 +3,7 @@ name = "zakat-ai"
 version = "0.1.0"
 description = "Source-backed, multi-methodology zakat fiqh assistant (Albani, Ibn Uthaymeen, Ibn Baz, Maliki, comparative)"
 authors = ["alienouur <alienouur@gmail.com>"]
-readme = "README.md"
+package-mode = false
 packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
