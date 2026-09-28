@@ -108,7 +108,7 @@ class Record(BaseModel):
     language: str = "ar"
 
     @model_validator(mode="after")
-    def _check_verified_has_url_or_page(self) -> "Record":
+    def _check_verified_has_url_or_page(self) -> Record:
         if self.verification_status == "verified":
             ok = any(s.url or s.page for s in self.sources)
             if not ok:
