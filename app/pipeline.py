@@ -404,6 +404,12 @@ class Pipeline:
             if primary.evidence:
                 lines.append(primary.evidence)
             res.sections.append(Section("evidence", "الدليل", "\n".join(lines), primary.id))
+        elif primary.ruling:
+            res.sections.append(Section(
+                "evidence", "الدليل",
+                "لم يُنقل في هذا السجل نصُّ دليلٍ من الكتاب أو السنة؛ الحكم منقول عن المصدر كما ورد دون إسنادٍ إلى دليل بعينه، ولا يضيف النظام دليلًا من عنده.",
+                primary.id,
+            ))
         if primary.evidence_explanation:
             res.sections.append(Section("evidence", "شرح الدليل / التعليل", primary.evidence_explanation, primary.id))
         # -- قول العالم / النص
@@ -424,7 +430,8 @@ class Pipeline:
             res.sections.append(Section("khilaf", "المشهور والأقوال الأخرى داخل المذهب", "\n".join(parts), primary.id))
         # -- مسائل ذات صلة من نفس المصادر
         for rec in secondary:
-            res.sections.append(Section("related", f"مسألة ذات صلة: {rec.subtopic}", rec.ruling, rec.id))
+            t = TOPIC_BY_ID.get(rec.subtopic)
+            res.sections.append(Section("related", f"مسألة ذات صلة: {t.label_ar if t else rec.subtopic}", rec.ruling, rec.id))
 
         # -- التطبيق على حالة المستخدم + الحساب
         if topic is not None:

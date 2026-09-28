@@ -133,6 +133,17 @@ def test_answer_with_complete_information_has_sources_and_calculation(client):
     assert d["clone"]["disclaimer_ar"]
 
 
+def test_answer_always_states_evidence_or_its_absence(client):
+    for clone in ("albani", "ibn_uthaymeen", "ibn_baz", "maliki"):
+        d = client.post("/api/ask", json={"clone": clone, "message": "عندي 10,000 دولار، كم زكاتي؟", "answers": CASH_ANSWERS, "manual_prices": PRICES}).json()
+        kinds = [s["kind"] for s in d["sections"]]
+        assert "evidence" in kinds, clone
+        assert kinds.index("ruling") < kinds.index("evidence")
+        for s in d["sections"]:
+            if s["kind"] == "related":
+                assert not s["title"].split(": ", 1)[1].isascii(), s["title"]  # Arabic topic label, not the raw id
+
+
 def test_clone_only_uses_its_own_records(client):
     kb = KnowledgeBase()
     for clone in ("albani", "ibn_uthaymeen", "ibn_baz", "maliki"):
@@ -189,6 +200,8 @@ def test_compare_lists_all_four_clones_without_choosing(client):
     assert [f["clone"] for f in d["findings"]] == ["albani", "ibn_uthaymeen", "ibn_baz", "maliki"]
     assert all(f["found"] for f in d["findings"])
     assert d["difference_points"]
+    assert d["agreement_points"]  # partial agreement (3 vs Maliki) is still reported, never left blank
+    assert any("بخلاف المذهب المالكي" in a for a in d["agreement_points"])
     assert "أصح" not in " ".join(d["agreement_points"] + d["difference_points"])
     maliki = next(f for f in d["findings"] if f["clone"] == "maliki")
     assert maliki["is_mashhur"] is not None

@@ -195,9 +195,22 @@ class Comparative:
             if p.agreement:
                 names = "، ".join(CLONE_LABEL[c] for c in named)
                 agree.append(f"{p.label}: اتفقت مصادر {names} على: {next(iter(named.values()))['label']}.")
-            else:
-                parts = [f"{CLONE_LABEL[c]}: {v['label']}" for c, v in named.items()]
-                differ.append(f"{p.label}: " + " | ".join(parts))
+                continue
+            parts = [f"{CLONE_LABEL[c]}: {v['label']}" for c, v in named.items()]
+            differ.append(f"{p.label}: " + " | ".join(parts))
+            groups: dict[str, list[str]] = {}
+            for c, v in named.items():
+                if v["value"] != "disputed":
+                    groups.setdefault(EQUIV.get(v["value"], v["value"]), []).append(c)
+            for clones in groups.values():
+                if len(clones) >= 2:  # partial agreement inside a disputed parameter
+                    others = [CLONE_LABEL[c] for c in named if c not in clones]
+                    agree.append(
+                        f"{p.label}: اتفقت مصادر {'، '.join(CLONE_LABEL[c] for c in clones)} على: {named[clones[0]]['label']}"
+                        + (f"، بخلاف {'، '.join(others)}." if others else ".")
+                    )
+        if params and not agree:
+            agree.append("لا توجد نقطة اتفاق بين موقفين مسجلين أو أكثر في المعايير المقارنة لهذه المسألة.")
         missing = [f.label for f in findings if not f.found]
         if missing:
             differ.append("لم يوجد نص متحقق منه في مصادر: " + "، ".join(missing) + ".")
