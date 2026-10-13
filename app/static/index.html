@@ -22,11 +22,23 @@
     <div class="topbar-actions">
       <button id="btn-sources" class="ghost" type="button">مصادر المنهج</button>
       <button id="btn-reset" class="ghost" type="button">محادثة جديدة</button>
+      <div id="user-box" class="user-box" hidden>
+        <button id="btn-user" class="ghost user-chip" type="button" title="الحساب"><span class="avatar" aria-hidden="true"></span><span id="user-name"></span></button>
+      </div>
+      <button id="btn-login" class="primary" type="button" hidden>تسجيل الدخول</button>
     </div>
   </header>
 
   <main class="layout">
     <aside class="side">
+      <section id="history-box" class="history" hidden>
+        <div class="history-head">
+          <h2>سجل محادثاتي</h2>
+          <button id="btn-history-refresh" class="ghost small" type="button" title="تحديث">↻</button>
+        </div>
+        <input id="history-search" type="search" placeholder="ابحث في أسئلتك السابقة…" autocomplete="off" />
+        <div id="history-list" class="history-list"></div>
+      </section>
       <h2>اختر المنهج</h2>
       <div id="clones" class="clones" role="tablist"></div>
       <div id="clone-info" class="clone-info"></div>
@@ -74,6 +86,54 @@
       <button id="btn-close-sources" class="ghost small" type="button">إغلاق</button>
     </div>
     <div id="sources-body"></div>
+  </dialog>
+
+  <dialog id="auth-dialog" class="auth-dialog">
+    <div class="dialog-head">
+      <h3 id="auth-title">تسجيل الدخول</h3>
+      <button id="btn-close-auth" class="ghost small" type="button">إغلاق</button>
+    </div>
+    <div class="auth-tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="login" role="tab">دخول</button>
+      <button type="button" class="tab" data-tab="register" role="tab">حساب جديد</button>
+    </div>
+    <p id="auth-intro" class="hint">هذه النسخة مخصصة للاستخدام داخل مكاتب الزكاة؛ سجّل الدخول ليُحفظ سجل أسئلتك وإجاباتها.</p>
+    <form id="login-form" class="auth-form">
+      <label>البريد الإلكتروني <input name="email" type="email" required autocomplete="username" /></label>
+      <label>كلمة المرور <input name="password" type="password" required autocomplete="current-password" /></label>
+      <div class="auth-error" hidden></div>
+      <button type="submit">دخول</button>
+    </form>
+    <form id="register-form" class="auth-form" hidden>
+      <label>الاسم <input name="name" type="text" required maxlength="80" autocomplete="name" /></label>
+      <label>البريد الإلكتروني <input name="email" type="email" required autocomplete="username" /></label>
+      <label>المكتب / الجهة (اختياري) <input name="office" type="text" maxlength="120" autocomplete="organization" /></label>
+      <label>كلمة المرور (8 أحرف فأكثر) <input name="password" type="password" required minlength="8" autocomplete="new-password" /></label>
+      <label id="invite-row" hidden>رمز الدعوة <input name="invite_code" type="text" autocomplete="off" /></label>
+      <div class="auth-error" hidden></div>
+      <button type="submit">إنشاء الحساب</button>
+    </form>
+  </dialog>
+
+  <dialog id="account-dialog">
+    <div class="dialog-head">
+      <h3>حسابي</h3>
+      <button id="btn-close-account" class="ghost small" type="button">إغلاق</button>
+    </div>
+    <div id="account-info" class="account-info"></div>
+    <form id="password-form" class="auth-form">
+      <h4>تغيير كلمة المرور</h4>
+      <label>كلمة المرور الحالية <input name="current_password" type="password" required autocomplete="current-password" /></label>
+      <label>كلمة المرور الجديدة <input name="new_password" type="password" required minlength="8" autocomplete="new-password" /></label>
+      <div class="auth-error" hidden></div>
+      <button type="submit" class="ghost">حفظ</button>
+    </form>
+    <div id="admin-panel" hidden>
+      <h4>لوحة المشرف</h4>
+      <div id="admin-stats" class="hint"></div>
+      <div id="admin-users"></div>
+    </div>
+    <div class="account-actions"><button id="btn-logout" class="ghost danger" type="button">تسجيل الخروج</button></div>
   </dialog>
 
   <template id="tpl-question">

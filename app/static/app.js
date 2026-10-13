@@ -22,17 +22,28 @@
     message: "",
     topic: "",
     answers: {},
+    // accounts & history
+    user: null,
+    requireLogin: false,
+    inviteOnly: false,
+    conversationId: null,
+    history: [],
   };
 
   const thread = $("#thread");
   const scrollDown = () => thread.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" });
 
-  async function api(path, body) {
-    const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  async function api(path, body, method) {
+    const opts = { method: method || (body ? "POST" : "GET"), credentials: "same-origin", headers: {} };
+    if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    const res = await fetch(path, opts);
     if (!res.ok) {
       let detail = res.statusText;
       try { detail = (await res.json()).detail || detail; } catch (_) { /* ignore */ }
-      throw new Error(`${res.status}: ${detail}`);
+      if (typeof detail !== "string") detail = JSON.stringify(detail);
+      const err = new Error(detail);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }
@@ -72,7 +83,7 @@
     state.clone = id;
     state.answers = {};
     renderClones();
-    $("#message").placeholder = id === "comparative" ? "المسألة التي تريد مقارنة المناهج فيها…" : "سؤالك…";
+    renderUser();
   }
 
   function renderTopics() {
@@ -313,10 +324,10 @@
     try {
       let data;
       if (state.clone === "comparative") {
-        data = await api("/api/compare", { message: state.message, topic: state.topic || null });
+        data = await api("/api/compare", { message: state.message, topic: state.topic || null, conversation_id: state.conversationId });
         spinner.replaceWith(data.stage === "out_of_scope" ? renderScope(data) : renderCompare(data));
       } else {
-        data = await api("/api/ask", { clone: state.clone, message: state.message, topic: state.topic || null, answers: state.answers, manual_prices: manualPrices() });
+        data = await api("/api/ask", { clone: state.clone, message: state.message, topic: state.topic || null, answers: state.answers, manual_prices: manualPrices(), conversation_id: state.conversationId });
         if (data.stage === "out_of_scope") {
           state.answers = {};
           spinner.replaceWith(renderScope(data));
@@ -326,8 +337,18 @@
           spinner.replaceWith(renderAnswer(data));
         }
       }
+      if (data.conversation_id) {
+        const isNew = state.conversationId !== data.conversation_id;
+        state.conversationId = data.conversation_id;
+        if (isNew || !followUp) loadHistory();
+      }
     } catch (err) {
-      spinner.replaceWith(el("div", { class: "msg error", text: `تعذّر الحصول على الإجابة: ${err.message}` }));
+      if (err.status === 401) {
+        spinner.replaceWith(el("div", { class: "msg history-note", text: "يلزم تسجيل الدخول لاستخدام النظام في هذه النسخة." }));
+        openAuth("login");
+      } else {
+        spinner.replaceWith(el("div", { class: "msg error", text: `تعذّر الحصول على الإجابة: ${err.message}` }));
+      }
     } finally {
       $("#btn-send").disabled = false;
       scrollDown();
@@ -349,10 +370,241 @@
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask-form").requestSubmit(); }
   });
 
-  $("#btn-reset").addEventListener("click", () => {
-    state.answers = {}; state.message = ""; state.topic = "";
+  function resetThread() {
+    state.answers = {}; state.message = ""; state.topic = ""; state.conversationId = null;
     $("#topic").value = "";
     thread.querySelectorAll(".msg:not(.system)").forEach((n) => n.remove());
+    renderHistory();
+  }
+  $("#btn-reset").addEventListener("click", resetThread);
+
+  // ---------------------------------------------------------------- accounts
+  const CLONE_SHORT = { albani: "الألباني", ibn_uthaymeen: "ابن عثيمين", ibn_baz: "ابن باز", maliki: "المالكية", comparative: "المقارن" };
+  const fmtDate = (iso) => { try { return new Date(iso).toLocaleString("ar", { dateStyle: "medium", timeStyle: "short" }); } catch (_) { return iso; } };
+
+  function renderUser() {
+    const u = state.user;
+    $("#user-box").hidden = !u;
+    $("#btn-login").hidden = !!u;
+    $("#history-box").hidden = !u;
+    document.body.classList.toggle("locked", !u && state.requireLogin);
+    if (u) {
+      $("#user-name").textContent = u.name;
+      $(".avatar", $("#btn-user")).textContent = (u.name || "?").trim().charAt(0);
+    }
+    $("#message").placeholder = !u && state.requireLogin ? "سجّل الدخول أولًا ثم اكتب سؤالك…" : (state.clone === "comparative" ? "المسألة التي تريد مقارنة المناهج فيها…" : "سؤالك…");
+  }
+
+  function showAuthError(form, msg) {
+    const box = $(".auth-error", form);
+    box.hidden = !msg;
+    box.textContent = msg || "";
+  }
+
+  function openAuth(tab) {
+    const dlg = $("#auth-dialog");
+    for (const b of dlg.querySelectorAll(".tab")) b.classList.toggle("active", b.dataset.tab === tab);
+    $("#login-form").hidden = tab !== "login";
+    $("#register-form").hidden = tab !== "register";
+    $("#auth-title").textContent = tab === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد";
+    $("#invite-row").hidden = !state.inviteOnly;
+    if (!dlg.open) dlg.showModal();
+    setTimeout(() => $(tab === "login" ? "#login-form input" : "#register-form input")?.focus(), 50);
+  }
+  $("#btn-login").addEventListener("click", () => openAuth("login"));
+  $("#btn-close-auth").addEventListener("click", () => $("#auth-dialog").close());
+  for (const b of document.querySelectorAll("#auth-dialog .tab")) b.addEventListener("click", () => openAuth(b.dataset.tab));
+
+  async function afterLogin(user) {
+    state.user = user;
+    $("#auth-dialog").close();
+    renderUser();
+    resetThread();
+    await loadHistory();
+  }
+
+  $("#login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    showAuthError(form, "");
+    form.querySelector("button").disabled = true;
+    try {
+      const r = await api("/api/auth/login", { email: fd.get("email"), password: fd.get("password") });
+      form.reset();
+      await afterLogin(r.user);
+    } catch (err) {
+      showAuthError(form, err.message);
+    } finally {
+      form.querySelector("button").disabled = false;
+    }
+  });
+
+  $("#register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    showAuthError(form, "");
+    form.querySelector("button").disabled = true;
+    try {
+      const r = await api("/api/auth/register", { name: fd.get("name"), email: fd.get("email"), office: fd.get("office") || null, password: fd.get("password"), invite_code: fd.get("invite_code") || null });
+      form.reset();
+      await afterLogin(r.user);
+    } catch (err) {
+      showAuthError(form, err.message);
+    } finally {
+      form.querySelector("button").disabled = false;
+    }
+  });
+
+  $("#btn-user").addEventListener("click", async () => {
+    const u = state.user;
+    if (!u) return;
+    const info = $("#account-info");
+    info.innerHTML = "";
+    info.append(el("div", {}, [el("strong", { text: u.name }), el("span", { class: `badge role`, text: u.role === "admin" ? "مشرف" : "مستخدم" })]));
+    info.append(el("div", { class: "hint", text: u.email + (u.office ? ` — ${u.office}` : "") }));
+    const panel = $("#admin-panel");
+    panel.hidden = u.role !== "admin";
+    $("#account-dialog").showModal();
+    if (u.role === "admin") loadAdmin();
+  });
+  $("#btn-close-account").addEventListener("click", () => $("#account-dialog").close());
+  $("#btn-logout").addEventListener("click", async () => {
+    try { await api("/api/auth/logout", {}); } catch (_) { /* ignore */ }
+    state.user = null; state.history = [];
+    $("#account-dialog").close();
+    renderUser();
+    resetThread();
+    if (state.requireLogin) openAuth("login");
+  });
+  $("#password-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    showAuthError(form, "");
+    try {
+      await api("/api/auth/password", { current_password: fd.get("current_password"), new_password: fd.get("new_password") });
+      form.reset();
+      showAuthError(form, "");
+      form.querySelector("h4").textContent = "تم تغيير كلمة المرور";
+    } catch (err) {
+      showAuthError(form, err.message);
+    }
+  });
+
+  async function loadAdmin() {
+    const statsBox = $("#admin-stats");
+    const usersBox = $("#admin-users");
+    statsBox.textContent = "…";
+    try {
+      const [stats, users] = await Promise.all([api("/api/admin/stats"), api("/api/admin/users")]);
+      statsBox.textContent = `المستخدمون: ${stats.users} — المحادثات: ${stats.conversations} — الرسائل: ${stats.messages} — جلسات نشطة: ${stats.active_sessions}`;
+      usersBox.innerHTML = "";
+      const table = el("table", { class: "admin-table" }, [el("thead", {}, [el("tr", {}, ["الاسم", "البريد", "الجهة", "الدور", "محادثات", ""].map((h) => el("th", { text: h })))])]);
+      const tb = el("tbody");
+      for (const x of users) {
+        const me = x.id === state.user.id;
+        const actions = el("td");
+        if (!me) {
+          actions.append(el("button", { type: "button", class: "ghost small", text: x.role === "admin" ? "إلغاء الإشراف" : "جعله مشرفًا", onclick: async () => {
+            await api(`/api/admin/users/${x.id}`, { role: x.role === "admin" ? "user" : "admin" }, "PATCH"); loadAdmin();
+          } }));
+          actions.append(el("button", { type: "button", class: "ghost small danger", text: "حذف", onclick: async () => {
+            if (!confirm(`حذف حساب ${x.name} وكل سجله؟`)) return;
+            await api(`/api/admin/users/${x.id}`, null, "DELETE"); loadAdmin();
+          } }));
+        }
+        tb.append(el("tr", {}, [el("td", { text: x.name }), el("td", { text: x.email }), el("td", { text: x.office || "—" }), el("td", { text: x.role === "admin" ? "مشرف" : "مستخدم" }), el("td", { text: String(x.conversations) }), actions]));
+      }
+      table.append(tb);
+      usersBox.append(table);
+    } catch (err) {
+      statsBox.textContent = err.message;
+    }
+  }
+
+  // ---------------------------------------------------------------- history
+  async function loadHistory() {
+    if (!state.user) return;
+    try {
+      state.history = await api("/api/history");
+    } catch (_) {
+      state.history = [];
+    }
+    renderHistory();
+  }
+
+  function renderHistory(items) {
+    const list = $("#history-list");
+    list.innerHTML = "";
+    const data = items || state.history;
+    if (!state.user) return;
+    if (!data.length) {
+      list.append(el("div", { class: "hist-empty", text: items ? "لا نتائج." : "لا توجد محادثات محفوظة بعد؛ أسئلتك وإجاباتها ستُحفظ هنا." }));
+      return;
+    }
+    for (const c of data) {
+      const id = c.id ?? c.conversation_id;
+      const item = el("div", { class: "hist-item" + (id === state.conversationId ? " active" : "") }, [
+        el("button", { type: "button", class: "t", onclick: () => openConversation(id) }, [
+          c.text || c.title,
+          el("span", { class: "m", text: `${CLONE_SHORT[c.clone] || c.clone} · ${fmtDate(c.updated_at || c.created_at)}` }),
+        ]),
+        el("button", { type: "button", class: "x", title: "حذف", text: "×", onclick: async (e) => {
+          e.stopPropagation();
+          if (!confirm("حذف هذه المحادثة من سجلك؟")) return;
+          try { await api(`/api/history/${id}`, null, "DELETE"); } catch (_) { /* ignore */ }
+          if (state.conversationId === id) resetThread();
+          loadHistory();
+        } }),
+      ]);
+      list.append(item);
+    }
+  }
+
+  function renderStored(content) {
+    if (content.stage === "out_of_scope") return renderScope(content);
+    if (Array.isArray(content.findings)) return renderCompare(content);
+    return renderAnswer(content);
+  }
+
+  async function openConversation(id) {
+    try {
+      const conv = await api(`/api/history/${id}`);
+      thread.querySelectorAll(".msg:not(.system)").forEach((n) => n.remove());
+      state.answers = {}; state.message = ""; state.topic = "";
+      state.conversationId = conv.id;
+      if (conv.clone !== state.clone && state.clones.some((c) => c.id === conv.clone)) { state.clone = conv.clone; renderClones(); }
+      thread.append(el("div", { class: "msg history-note", text: `محادثة محفوظة — ${fmtDate(conv.created_at)}. يمكنك متابعة السؤال فيها أو بدء محادثة جديدة.` }));
+      for (const m of conv.messages) {
+        if (m.role === "user") {
+          thread.append(el("div", { class: "msg user", text: m.content.text || "" }));
+          state.message = m.content.text || state.message;
+        } else {
+          const node = renderStored(m.content);
+          node.querySelectorAll("form.questions input, form.questions button").forEach((n) => (n.disabled = true));
+          thread.append(node);
+          if (m.content.topic?.id) state.topic = m.content.topic.id;
+          if (m.content.answers) state.answers = { ...state.answers, ...m.content.answers };
+        }
+      }
+      renderHistory();
+      scrollDown();
+    } catch (err) {
+      thread.append(el("div", { class: "msg error", text: `تعذّر فتح المحادثة: ${err.message}` }));
+    }
+  }
+
+  $("#btn-history-refresh").addEventListener("click", loadHistory);
+  let searchTimer = null;
+  $("#history-search").addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+    const q = e.target.value.trim();
+    searchTimer = setTimeout(async () => {
+      if (q.length < 2) return renderHistory();
+      try { renderHistory(await api(`/api/history/search?q=${encodeURIComponent(q)}`)); } catch (_) { renderHistory([]); }
+    }, 250);
   });
 
   $("#btn-market").addEventListener("click", async () => {
@@ -403,9 +655,14 @@
 
   (async () => {
     try {
-      [state.clones, state.topics] = await Promise.all([api("/api/clones"), api("/api/topics")]);
+      const [clones, topics, me, cfg] = await Promise.all([api("/api/clones"), api("/api/topics"), api("/api/auth/me"), api("/api/auth/config")]);
+      state.clones = clones; state.topics = topics;
+      state.user = me.user; state.requireLogin = !!me.require_login; state.inviteOnly = !!cfg.invite_only;
       renderClones();
       renderTopics();
+      renderUser();
+      if (state.user) loadHistory();
+      else if (state.requireLogin) openAuth("login");
     } catch (err) {
       thread.append(el("div", { class: "msg error", text: `تعذّر تحميل الإعدادات: ${err.message}` }));
     }
