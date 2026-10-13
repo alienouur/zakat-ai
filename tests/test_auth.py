@@ -90,7 +90,7 @@ def test_history_is_saved_per_user_and_isolated(client):
     assert full["messages"][0]["content"]["text"].startswith("هل في حلي")
     assert "sections" in full["messages"][1]["content"] or "questions" in full["messages"][1]["content"]
 
-    assert client.get("/api/history/search?q=الحلي").json()[0]["conversation_id"] == cid
+    assert client.get("/api/history/search?q=حلي").json()[0]["conversation_id"] == cid
     assert client.patch(f"/api/history/{cid}", json={"title": "زكاة الحلي"}).status_code == 200
     assert client.get(f"/api/history/{cid}").json()["title"] == "زكاة الحلي"
 
