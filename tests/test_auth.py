@@ -1,3 +1,4 @@
+import re
 """Accounts, login sessions, history persistence and the login gate on the question endpoints."""
 import os
 
@@ -178,3 +179,13 @@ def test_deleting_user_removes_their_activity_from_analytics(client):
     act = client.get("/api/admin/activity").json()
     assert len(act) == 1 and act[0]["stage"] == "answer"  # comparative answers have no stage field
     assert ",answer," in client.get("/api/admin/export/questions.csv").text
+
+
+def test_pages_version_assets_and_disable_html_caching(client):
+    r = client.get("/")
+    assert r.status_code == 200 and "no-cache" in r.headers["cache-control"]
+    assert re.search(r'/static/style\.css\?v=[0-9a-f]{10}"', r.text) and re.search(r'/static/app\.js\?v=[0-9a-f]{10}"', r.text)
+    a = client.get("/admin")
+    assert re.search(r'/static/admin\.js\?v=[0-9a-f]{10}"', a.text)
+    assert client.get("/static/style.css").headers["cache-control"] == "no-cache"
+    assert "immutable" in client.get("/static/style.css?v=abc").headers["cache-control"]

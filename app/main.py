@@ -11,9 +11,10 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 import csv
+import hashlib
 import io
 
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -451,13 +452,35 @@ async def compare(req: CompareRequest, request: Request) -> dict:
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    def _asset_version() -> str:
+        h = hashlib.md5()
+        for f in sorted(STATIC_DIR.glob("*.*")):
+            h.update(f.name.encode() + str(f.stat().st_mtime_ns).encode())
+        return h.hexdigest()[:10]
+
+    ASSET_VERSION = _asset_version()
+
+    def _page(name: str) -> HTMLResponse:
+        # browsers (notably mobile Safari/Chrome) cache un-versioned CSS/JS heuristically,
+        # so stamp asset URLs with a version and keep the HTML itself uncached
+        html = (STATIC_DIR / name).read_text(encoding="utf-8")
+        html = re.sub(r'(/static/[\w.-]+\.(?:css|js))"', lambda m: f'{m.group(1)}?v={ASSET_VERSION}"', html)
+        return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
+
+    @app.middleware("http")
+    async def _static_cache_headers(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
+        return response
+
     @app.get("/")
-    def index() -> FileResponse:
-        return FileResponse(str(STATIC_DIR / "index.html"))
+    def index() -> HTMLResponse:
+        return _page("index.html")
 
     @app.get("/admin")
-    def admin_page() -> FileResponse:
-        return FileResponse(str(STATIC_DIR / "admin.html"))
+    def admin_page() -> HTMLResponse:
+        return _page("admin.html")
 
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon() -> Response:
