@@ -274,3 +274,6 @@ button.ghost.danger:hover { background: var(--danger-soft); }
   .auth-dialog { max-width: 100vw; }
 }
 
+
+/* flex/grid display rules must not defeat the hidden attribute (auth forms, invite row, user chip) */
+[hidden] { display: none !important; }
