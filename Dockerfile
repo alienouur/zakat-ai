@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8080 ZAKAT_DATA_DIR=/data
 WORKDIR /srv
