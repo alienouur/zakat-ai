@@ -14,33 +14,45 @@
   "source_priority_ar": [
     "مجموع فتاوى ورسائل الشيخ ابن عثيمين (الجزء والصفحة عند التحقق منهما).",
     "الشرح الممتع على زاد المستقنع (كتاب الزكاة).",
-    "الفتاوى المكتوبة والمفرّغة على الموقع الرسمي binothaimeen.net (نور على الدرب، اللقاء الشهري، لقاء الباب المفتوح).",
+    "الفتاوى المكتوبة والمفرّغة على الموقع الرسمي binothaimeen.net (نور على الدرب، اللقاء الشهري، لقاء الباب المفتوح) — تشمل 75 صفحة أُضيفت من فهرس PDF مقدَّم من الجهة المستفيدة.",
     "الدروس والشروح الصوتية المفرّغة على الموقع الرسمي."
   ],
   "calc_params": {
     "nisab_standard": {
       "value": "silver",
-      "basis_records": ["uth_nisab_paper_money_by_silver", "uth_nisab_silver_saudi_riyal", "uth_nisab_grams_gold_silver"],
+      "basis_records": [
+        "uth_nisab_paper_money_by_silver",
+        "uth_nisab_silver_saudi_riyal",
+        "uth_nisab_grams_gold_silver"
+      ],
       "note_ar": "يعتبر الشيخ نصاب الأوراق النقدية بقيمة الفضة (56 ريالًا فضيًا سعوديًا / 595 جم فضة)، ويذكر نصاب الذهب 85 جم (وورد 75 جم في فتوى واحدة)."
     },
     "debt_deduction": {
       "value": "none",
-      "basis_records": ["uth_debt_on_you"],
+      "basis_records": [
+        "uth_debt_on_you"
+      ],
       "note_ar": "رجّح الشيخ أن الدين لا يمنع وجوب الزكاة، مع عرضه للأقوال الأخرى."
     },
     "jewelry_worn": {
       "value": "obligatory",
-      "basis_records": ["uth_jewelry_worn"],
+      "basis_records": [
+        "uth_jewelry_worn"
+      ],
       "note_ar": "رجّح الشيخ وجوب الزكاة في الحلي المستعمل إذا بلغ النصاب وحال عليه الحول."
     },
     "fitr_cash": {
       "value": "not_allowed",
-      "basis_records": ["uth_fitr_cash_not_allowed"],
+      "basis_records": [
+        "uth_fitr_cash_not_allowed"
+      ],
       "note_ar": "لا يجزئ عنده إخراج زكاة الفطر نقودًا إلا إذا لم يوجد من يقبل الطعام أصلًا."
     },
     "trade_valuation": {
       "value": "market",
-      "basis_records": ["uth_trade_valuation_market"],
+      "basis_records": [
+        "uth_trade_valuation_market"
+      ],
       "note_ar": "تُقوَّم العروض بقيمتها السوقية وقت تمام الحول لا بسعر التكلفة."
     }
   }

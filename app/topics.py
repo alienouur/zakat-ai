@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .normalize import normalize
+from .normalize import light_stem, normalize
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ TOPICS: list[Topic] = [
     Topic("hawl", "الحول", "basics", ("الحول", "حول", "سنة كاملة", "مضى عليه سنة", "حال عليه"), ("zakat", "hawl")),
     Topic("mustafad", "المال المستفاد أثناء الحول", "basics", ("المال المستفاد", "مال مستفاد", "اضيف الى المال", "زاد المال", "دخل جديد"), ("zakat", "hawl", "mustafad")),
     Topic("advance", "تعجيل الزكاة", "basics", ("تعجيل", "اعجل", "قبل الحول", "اخراج الزكاة مقدما", "تقديم الزكاة"), ("zakat", "advance")),
-    Topic("delay", "تأخير الزكاة", "basics", ("تاخير الزكاة", "تاخرت", "لم اخرج الزكاة", "سنوات ماضية", "زكاة سنوات", "نسيت الزكاة"), ("zakat", "delay")),
+    Topic("delay", "تأخير الزكاة", "basics", ("تاخير الزكاة", "تاخرت", "لم اخرج الزكاة", "سنوات ماضية", "زكاة سنوات", "نسيت الزكاة", "على الفور", "اخرت الزكاة", "تجزئة الزكاة", "تقسيط الزكاة", "اقسط الزكاة", "ناقصة", "وكلت", "التوكيل", "وكيل", "عزلت", "سرق"), ("zakat", "delay")),
     # --- cash ---
     Topic("cash", "زكاة النقود والمدخرات", "cash", ("نقود", "نقد", "مدخرات", "مدخر", "فلوس", "مبلغ", "دولار", "ريال", "دينار", "درهم", "جنيه", "يورو", "اوراق نقدية", "عملة", "عملات", "كاش"), ("zakat", "cash", "nisab", "hawl"), True),
     Topic("bank", "الحساب البنكي", "cash", ("حساب بنكي", "البنك", "بنك", "حساب جاري", "حساب توفير", "وديعة", "مصرف"), ("zakat", "cash", "bank"), True),
@@ -54,7 +54,10 @@ TOPICS: list[Topic] = [
     # --- zakat al-fitr ---
     Topic("zakat_fitr", "زكاة الفطر", "zakat_fitr", ("زكاة الفطر", "صدقة الفطر", "فطرة", "الفطرة", "زكاة رمضان", "صاع", "العيد", "زكاة الفطر نقدا"), ("zakat_al_fitr",), True),
     # --- recipients ---
-    Topic("recipients", "مصارف الزكاة", "recipients", ("مصارف", "لمن تعطى", "من يستحق", "الفقراء", "المساكين", "العاملين عليها", "المؤلفة قلوبهم", "الرقاب", "الغارمين", "غارم", "في سبيل الله", "ابن السبيل", "اعطاء الزكاة", "دفع الزكاة ل", "الزكاة للاقارب", "الزكاة للوالدين", "بناء مسجد", "طالب علم", "مستشفى", "الجمعيات الخيرية", "تعطى الزكاة", "المستحق"), ("zakat", "recipients")),
+    Topic("recipients", "مصارف الزكاة", "recipients", ("مصارف", "لمن تعطى", "من يستحق", "الفقراء", "المساكين", "العاملين عليها", "المؤلفة قلوبهم", "الرقاب", "الغارمين", "غارم", "في سبيل الله", "ابن السبيل", "اعطاء الزكاة", "دفع الزكاة ل", "الزكاة للاقارب", "الزكاة للوالدين", "بناء مسجد", "طالب علم", "مستشفى", "الجمعيات الخيرية", "تعطى الزكاة", "المستحق",
+          "الزكاة ل", "زكاتي ل", "زكاته ل", "زكاتها ل", "من الزكاة", "من زكاتي", "من زكاته", "يستحق الزكاة", "اهل الزكاة", "نقل الزكاة",
+          "الخادم", "خادم", "لاختي", "لاخي", "اخي الفقير", "لزوجي", "لزوجها", "لزوجته", "اليتامى", "ايتام", "يتيم", "تارك الصلاة", "لا يصلي",
+          "جمعية", "استثمار اموال الزكاة", "هدية", "ال البيت", "الاشراف", "قضاء الدين عن", "دين المعسر", "اسقاط الدين", "ابراء"), ("zakat", "recipients")),
 ]
 
 TOPIC_BY_ID = {t.id: t for t in TOPICS}
@@ -66,10 +69,16 @@ GROUP_LABELS = {
 }
 
 
+# currency names and generic amount words appear in questions about any zakatable asset
+GENERIC_TOPICS = {"nisab", "hawl", "cash"}
+WEAK_KEYWORDS = {"دولار", "ريال", "دينار", "درهم", "جنيه", "يورو", "مبلغ", "عملة", "عملات"}
+
+
 def detect_topics(text: str, limit: int = 3) -> list[tuple[Topic, float]]:
-    """Keyword-based topic detection; longer keyword matches weigh more."""
+    """Keyword-based topic detection; longer keyword matches weigh more, currency words weigh less."""
     n = normalize(text)
     padded = f" {n} "
+    stemmed = f" {' '.join(light_stem(w) for w in n.split())} "
     scored: list[tuple[Topic, float]] = []
     for t in TOPICS:
         score = 0.0
@@ -77,11 +86,20 @@ def detect_topics(text: str, limit: int = 3) -> list[tuple[Topic, float]]:
             k = normalize(kw)
             if not k:
                 continue
-            if f" {k} " in padded:
-                score += 2.0 + 0.1 * len(k.split())
+            ks = " ".join(light_stem(w) for w in k.split())
+            weight = 0.5 if kw in WEAK_KEYWORDS else 1.0
+            if f" {k} " in padded or f" {ks} " in stemmed:
+                score += weight * (2.0 + 0.1 * len(k.split()))
             elif k in n:
-                score += 1.0 + 0.1 * len(k.split())
+                score += weight * (1.0 + 0.1 * len(k.split()))
         if score:
             scored.append((t, score))
     scored.sort(key=lambda x: -x[1])
+    # a question naming a specific asset class belongs to it even if it also asks about the nisab/hawl
+    # or mentions money words ("نصاب الذهب", "ذهب مدخر", "راتبي ... ريال")
+    if scored and scored[0][0].id in GENERIC_TOPICS:
+        specific = [x for x in scored if x[0].id not in GENERIC_TOPICS]
+        if specific:
+            scored.remove(specific[0])
+            scored.insert(0, specific[0])
     return scored[:limit]

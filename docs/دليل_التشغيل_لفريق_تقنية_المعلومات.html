@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>دليل تشغيل نظام «المستشار الفقهي للزكاة» على سيرفر صندوق الزكاة</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" />
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: "Cairo", "DejaVu Sans", sans-serif; color: #142b2c; line-height: 1.85; font-size: 12.5pt; margin: 0; }
+  .cover { background: linear-gradient(135deg, #1a4a4a, #2d6a6a); color: #fff; padding: 40px 36px; border-bottom: 6px solid #d4af37; border-radius: 12px; margin-bottom: 28px; }
+  .cover h1 { margin: 0 0 8px; font-size: 24pt; }
+  .cover p { margin: 4px 0; color: rgba(255,255,255,.9); }
+  .cover .gold { color: #d4af37; font-weight: 700; }
+  h2 { color: #1a4a4a; border-inline-start: 6px solid #d4af37; padding-inline-start: 10px; margin-top: 34px; font-size: 17pt; page-break-after: avoid; }
+  h3 { color: #245c5c; margin-bottom: 4px; font-size: 13.5pt; page-break-after: avoid; }
+  .step { background: #f3f7f6; border: 1px solid #d6e2e0; border-radius: 10px; padding: 12px 16px; margin: 12px 0; page-break-inside: avoid; }
+  .step .n { display: inline-block; background: #d4af37; color: #123838; font-weight: 700; border-radius: 999px; width: 30px; height: 30px; text-align: center; line-height: 30px; margin-inline-end: 8px; }
+  .step h3 { display: inline; }
+  pre, code { font-family: "DejaVu Sans Mono", Consolas, monospace; direction: ltr; text-align: left; }
+  pre { background: #123838; color: #fbf4df; padding: 10px 14px; border-radius: 8px; font-size: 10.5pt; overflow-x: auto; white-space: pre-wrap; }
+  code { background: #e3eeed; padding: 1px 6px; border-radius: 4px; font-size: 10.5pt; unicode-bidi: embed; }
+  .note { background: #fbf4df; border: 1px solid #ecd9a0; border-radius: 8px; padding: 8px 14px; margin: 10px 0; }
+  .warn { background: #fdecec; border: 1px solid #f0bcbc; border-radius: 8px; padding: 8px 14px; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #d6e2e0; padding: 6px 10px; text-align: start; vertical-align: top; }
+  th { background: #e3eeed; color: #1a4a4a; }
+  ol li, ul li { margin: 4px 0; }
+  .toc { columns: 2; column-gap: 30px; font-size: 11.5pt; }
+  .toc a { color: #1a4a4a; text-decoration: none; }
+  .small { font-size: 10.5pt; color: #587173; }
+  .pb { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>دليل تشغيل نظام «المستشار الفقهي للزكاة»</h1>
+  <p class="gold">نسخة التشغيل الذاتي على سيرفر صندوق الزكاة — موجَّه لفريق تقنية المعلومات</p>
+  <p>الإصدار 1.0 — أكتوبر 2026</p>
+  <p>هذا الدليل مكتوب خطوة بخطوة بلغة بسيطة. لا يحتاج خبرة برمجية؛ يكفي معرفة نسخ الملفات وفتح نافذة الأوامر.</p>
+</div>
+
+<h2>المحتويات</h2>
+<div class="toc">
+  <ol>
+    <li><a href="#what">ما هذا النظام وما الذي يوجد في الحزمة؟</a></li>
+    <li><a href="#req">متطلبات السيرفر</a></li>
+    <li><a href="#linux">التثبيت على سيرفر Linux (الطريقة الموصى بها)</a></li>
+    <li><a href="#windows">التثبيت على سيرفر Windows</a></li>
+    <li><a href="#env">شرح ملف الإعدادات .env</a></li>
+    <li><a href="#first">أول تشغيل: إنشاء حساب المشرف</a></li>
+    <li><a href="#admin">لوحة التحكم (المستخدمون، الإحصاءات، التصدير)</a></li>
+    <li><a href="#ops">التشغيل اليومي: إيقاف، تشغيل، سجل الأخطاء</a></li>
+    <li><a href="#backup">النسخ الاحتياطي والاسترجاع</a></li>
+    <li><a href="#update">التحديث إلى نسخة جديدة</a></li>
+    <li><a href="#https">اختياري: اسم نطاق وشهادة HTTPS</a></li>
+    <li><a href="#trouble">حل المشاكل الشائعة</a></li>
+    <li><a href="#security">ملاحظات أمنية وخصوصية البيانات</a></li>
+  </ol>
+</div>
+
+<h2 id="what">1. ما هذا النظام وما الذي يوجد في الحزمة؟</h2>
+<p>النظام موقع داخلي يعمل من المتصفح، يساعد المستشار الشرعي في مكاتب الزكاة بالإجابة عن أسئلة الزكاة اعتمادًا على فتاوى موثقة بمصادرها (الألباني، ابن باز، ابن عثيمين، المذهب المالكي، ووضع مقارن بينهم). كل إجابة تُبنى من السجلات الموثقة فقط وتظهر معها المصادر والروابط. النظام <b>ليس مفتيًا</b> وهو أداة مساعدة للمستشار.</p>
+<p>الحزمة (ملف ZIP) تحتوي على:</p>
+<table>
+  <tr><th>المجلد / الملف</th><th>ما هو</th></tr>
+  <tr><td><code>deploy/</code></td><td>كل ما يحتاجه فريق التقنية للتشغيل: <code>install.sh</code> (Linux)، <code>install.ps1</code> (Windows)، <code>docker-compose.yml</code>، ملف الإعدادات <code>.env.example</code>، وملفات النسخ الاحتياطي والتحديث.</td></tr>
+  <tr><td><code>app/</code></td><td>كود النظام (الخادم + الواجهة). لا يحتاج أي تعديل.</td></tr>
+  <tr><td><code>zakat_knowledge_base/</code></td><td>قاعدة المعرفة: السجلات الفقهية الموثقة (ملفات JSON) — 213 سجلًا.</td></tr>
+  <tr><td><code>docs/</code></td><td>هذا الدليل.</td></tr>
+  <tr><td><code>Dockerfile</code></td><td>وصفة بناء النظام داخل حاوية Docker (تُستخدم تلقائيًا).</td></tr>
+</table>
+<div class="note">فكرة التشغيل ببساطة: نستخدم برنامج <b>Docker</b> الذي يشغّل النظام في «صندوق مغلق» على السيرفر بأمر واحد، ويعيد تشغيله تلقائيًا عند إعادة تشغيل السيرفر. لا تحتاج تثبيت Python أو أي شيء آخر.</div>
+
+<h2 id="req">2. متطلبات السيرفر</h2>
+<table>
+  <tr><th>العنصر</th><th>الحد الأدنى</th><th>ملاحظات</th></tr>
+  <tr><td>نظام التشغيل</td><td>Ubuntu Server 22.04 أو أحدث (أو أي Linux حديث) — أو Windows Server 2019/2022 مع Docker Desktop</td><td>Linux أسهل وأخف وموصى به.</td></tr>
+  <tr><td>المعالج / الذاكرة</td><td>2 أنوية — 2 GB RAM</td><td>يكفي لعشرات المستخدمين في الوقت نفسه.</td></tr>
+  <tr><td>القرص</td><td>10 GB فارغة</td><td>قاعدة البيانات صغيرة جدًا (ميغابايتات).</td></tr>
+  <tr><td>الشبكة</td><td>فتح المنفذ <code>8080</code> داخل شبكة الصندوق</td><td>الموظفون يفتحون <code>http://اسم-السيرفر:8080</code> من متصفحهم.</td></tr>
+  <tr><td>الإنترنت</td><td>مطلوب أثناء التثبيت فقط (لتحميل Docker ومكونات النظام)</td><td>بعد التثبيت يعمل بدون إنترنت. الإنترنت اختياري لجلب أسعار الذهب/الفضة الحية ولطبقة Gemini.</td></tr>
+  <tr><td>صلاحيات</td><td>حساب له صلاحية <code>sudo</code> (Linux) أو مدير (Windows)</td><td></td></tr>
+</table>
+
+<h2 id="linux" class="pb">3. التثبيت على سيرفر Linux (الطريقة الموصى بها)</h2>
+<p>المدة المتوقعة: 10 دقائق.</p>
+
+<div class="step"><span class="n">1</span><h3>انسخ ملف ZIP إلى السيرفر</h3>
+<p>مثلًا بواسطة WinSCP أو FileZilla أو بأمر <code>scp</code> من جهازك:</p>
+<pre>scp zakat-ai-onprem.zip user@192.168.1.50:/home/user/</pre>
+<p class="small">استبدل <code>user</code> باسم المستخدم على السيرفر و<code>192.168.1.50</code> بعنوان السيرفر.</p></div>
+
+<div class="step"><span class="n">2</span><h3>افتح نافذة الأوامر على السيرفر وفكّ الضغط</h3>
+<pre>cd ~
+sudo apt-get install -y unzip
+unzip zakat-ai-onprem.zip -d zakat-ai
+cd zakat-ai/deploy</pre></div>
+
+<div class="step"><span class="n">3</span><h3>أنشئ ملف الإعدادات وعدّله (اختياري في البداية)</h3>
+<pre>cp .env.example .env
+nano .env</pre>
+<p>الإعدادات الافتراضية تعمل مباشرة. أهم ما قد تغيّره الآن: <code>INVITE_CODE</code> (رمز الدعوة) و<code>HOST_PORT</code> (المنفذ). الشرح الكامل في القسم 5. للحفظ في nano: <b>Ctrl+O</b> ثم <b>Enter</b> ثم <b>Ctrl+X</b>.</p></div>
+
+<div class="step"><span class="n">4</span><h3>شغّل ملف التثبيت</h3>
+<pre>chmod +x *.sh
+./install.sh</pre>
+<p>الملف يقوم بكل شيء: يثبّت Docker إن لم يكن موجودًا، يبني النظام، يشغّله، وينتظر حتى يصبح جاهزًا، ثم يطبع لك الرابط:</p>
+<pre>================================================================
+ تم التشغيل بنجاح. افتح من أي جهاز داخل الشبكة:
+   http://192.168.1.50:8080
+ أول حساب يُسجَّل يصبح مشرفًا. لوحة التحكم: /admin
+================================================================</pre>
+<div class="note">إذا ثبّت الملف Docker للتو وظهرت رسالة "permission denied"، سجّل الخروج من السيرفر ثم ادخل مجددًا وشغّل <code>./install.sh</code> مرة أخرى.</div></div>
+
+<div class="step"><span class="n">5</span><h3>افتح الرابط من متصفح أي جهاز في الشبكة</h3>
+<p>ستظهر صفحة النظام مع نافذة تسجيل الدخول. انتقل إلى القسم 6 لإنشاء حساب المشرف.</p></div>
+
+<div class="note">النظام يعيد تشغيل نفسه تلقائيًا إذا أُعيد تشغيل السيرفر (<code>restart: unless-stopped</code>). لا تحتاج أي خطوة إضافية.</div>
+
+<h2 id="windows" class="pb">4. التثبيت على سيرفر Windows</h2>
+<div class="step"><span class="n">1</span><h3>ثبّت Docker Desktop</h3>
+<p>حمّله من <code>https://www.docker.com/products/docker-desktop</code> وثبّته بالخيارات الافتراضية، ثم أعد تشغيل الجهاز وتأكد أن أيقونة Docker (الحوت) ظاهرة بجانب الساعة وحالتها "Running".</p></div>
+<div class="step"><span class="n">2</span><h3>فكّ ضغط ملف ZIP</h3>
+<p>مثلًا إلى <code>C:\zakat-ai</code> (انقر بزر الفأرة الأيمن على الملف → Extract All).</p></div>
+<div class="step"><span class="n">3</span><h3>افتح PowerShell كمدير</h3>
+<p>ابحث في قائمة ابدأ عن <b>PowerShell</b> → زر أيمن → <b>Run as administrator</b>، ثم اكتب:</p>
+<pre>cd C:\zakat-ai\deploy
+Set-ExecutionPolicy -Scope Process Bypass -Force
+.\install.ps1</pre></div>
+<div class="step"><span class="n">4</span><h3>افتح الرابط</h3>
+<p>بعد ظهور رسالة "تم التشغيل بنجاح" افتح <code>http://localhost:8080</code> على السيرفر نفسه، أو <code>http://اسم-السيرفر:8080</code> من الأجهزة الأخرى.</p>
+<div class="note">إذا لم يفتح من الأجهزة الأخرى: افتح <b>Windows Defender Firewall → Advanced settings → Inbound Rules → New Rule → Port → TCP 8080 → Allow</b>.</div></div>
+
+<h2 id="env">5. شرح ملف الإعدادات <code>.env</code></h2>
+<p>الملف نص بسيط، كل سطر إعداد واحد بصيغة <code>الاسم=القيمة</code>. بعد أي تعديل شغّل <code>docker compose up -d</code> داخل مجلد <code>deploy</code> ليُطبَّق.</p>
+<table>
+  <tr><th>الإعداد</th><th>القيمة الافتراضية</th><th>معناه</th></tr>
+  <tr><td><code>HOST_PORT</code></td><td>8080</td><td>المنفذ الذي يفتح عليه الموقع. غيّره إذا كان 8080 مستخدمًا.</td></tr>
+  <tr><td><code>REQUIRE_LOGIN</code></td><td>1</td><td>1 = لا يمكن طرح أي سؤال بدون تسجيل دخول. اتركه 1.</td></tr>
+  <tr><td><code>INVITE_CODE</code></td><td>(فارغ)</td><td><b>مهم:</b> إذا وضعت رمزًا (مثلًا <code>ZAKAT2026</code>) فلن يستطيع أحد إنشاء حساب إلا بكتابته في خانة "رمز الدعوة". فارغ = أي شخص يصل للرابط يستطيع التسجيل. يُنصح بوضع رمز وإعطائه للموظفين فقط.</td></tr>
+  <tr><td><code>ADMIN_EMAILS</code></td><td>(فارغ)</td><td>بريد (أو عدة عناوين مفصولة بفاصلة) يصبح مشرفًا تلقائيًا عند التسجيل. أول حساب يُسجَّل يصبح مشرفًا دائمًا.</td></tr>
+  <tr><td><code>RATE_LIMIT_PER_MINUTE</code></td><td>30</td><td>أقصى عدد أسئلة للمستخدم الواحد في الدقيقة (حماية من الإفراط).</td></tr>
+  <tr><td><code>COOKIE_SECURE</code></td><td>0</td><td>اتركه 0 ما دام الموقع يعمل بـ http داخل الشبكة. اجعله 1 فقط عند تفعيل HTTPS (القسم 11)، وإلا لن يعمل تسجيل الدخول.</td></tr>
+  <tr><td><code>SESSION_DAYS</code></td><td>30</td><td>كم يومًا يبقى المستخدم مسجّلًا قبل أن يُطلب منه الدخول مجددًا.</td></tr>
+  <tr><td><code>GEMINI_API_KEY</code></td><td>(فارغ)</td><td>اختياري. مفتاح Google Gemini لتحسين صياغة الإجابة لغويًا فقط؛ الأحكام والأرقام والمصادر لا تتغير ويتحقق النظام من ذلك. فارغ = النظام يعمل بالقالب الثابت (ولا يحتاج إنترنت).</td></tr>
+</table>
+
+<h2 id="first" class="pb">6. أول تشغيل: إنشاء حساب المشرف</h2>
+<div class="warn"><b>مهم جدًا:</b> أول حساب يُسجَّل في النظام يصبح <b>المشرف</b> تلقائيًا. لذلك يجب أن يسجّل مسؤول النظام أولًا قبل إعطاء الرابط للموظفين.</div>
+<ol>
+  <li>افتح الرابط <code>http://اسم-السيرفر:8080</code>.</li>
+  <li>في نافذة الدخول اضغط <b>«حساب جديد»</b>.</li>
+  <li>اكتب الاسم، البريد الإلكتروني، الجهة/المكتب (مثل «مكتب طرابلس»)، وكلمة سر من 8 أحرف فأكثر. إذا كان هناك رمز دعوة اكتبه.</li>
+  <li>اضغط <b>«إنشاء الحساب»</b>. ستظهر كلمة «مشرف» بجانب اسمك أعلى الصفحة.</li>
+  <li>الآن أعطِ الرابط (ورمز الدعوة إن وُجد) للموظفين؛ كل موظف ينشئ حسابه بنفسه، ويرى سجل محادثاته فقط.</li>
+</ol>
+
+<h2 id="admin">7. لوحة التحكم (المستخدمون، الإحصاءات، التصدير)</h2>
+<p>افتح <code>http://اسم-السيرفر:8080/admin</code> (أو من زر اسمك أعلى الصفحة → «لوحة المشرف» → «فتح لوحة التحكم الكاملة»). اللوحة متاحة للمشرفين فقط وتعرض:</p>
+<ul>
+  <li><b>مؤشرات عامة:</b> عدد المستخدمين، النشطون آخر 7/30 يومًا، إجمالي الأسئلة، المحادثات، الأسئلة خارج النطاق.</li>
+  <li><b>الأسئلة يوميًا</b> (رسم بياني) مع اختيار المدة: 7 / 30 / 90 / 365 يومًا.</li>
+  <li><b>التوزيع</b> حسب المنهج (الألباني، ابن باز…) وحسب نوع الرد (إجابة، أسئلة توضيحية، خارج النطاق).</li>
+  <li><b>حسب الجهة/المكتب</b> و<b>الأكثر استخدامًا</b>.</li>
+  <li><b>المستخدمون والحسابات:</b> الاسم، البريد، الجهة، الدور، تاريخ التسجيل، آخر دخول، عدد المحادثات — مع أزرار: <i>جعله مشرفًا / إلغاء الإشراف</i>، <i>حذف</i> (يحذف الحساب وكل سجله)، <i>أسئلته</i>.</li>
+  <li><b>سجل الأسئلة:</b> كل سؤال مع صاحبه ووقته والمنهج ونوع الرد، مع بحث.</li>
+  <li><b>تصدير CSV:</b> زر «تصدير CSV» في قسم المستخدمين وقسم الأسئلة يحمّل ملفًا يفتح في Excel مباشرة (العربية تظهر صحيحة).</li>
+</ul>
+<div class="note">تغيير كلمة السر: كل مستخدم يغيّر كلمته من زر اسمه أعلى الصفحة. إذا نسي موظف كلمة سره: المشرف يحذف حسابه من اللوحة ويعيد الموظف التسجيل (يفقد سجله القديم)، أو يستخدم فريق التقنية الأمر في القسم 12.</div>
+
+<h2 id="ops" class="pb">8. التشغيل اليومي</h2>
+<p>كل الأوامر تُنفَّذ داخل مجلد <code>deploy</code> (<code>cd ~/zakat-ai/deploy</code> على Linux، أو <code>cd C:\zakat-ai\deploy</code> على Windows).</p>
+<table>
+  <tr><th>ماذا تريد؟</th><th>الأمر</th></tr>
+  <tr><td>هل النظام يعمل؟</td><td><code>docker compose ps</code> — يجب أن تظهر الحالة <code>running (healthy)</code></td></tr>
+  <tr><td>عرض سجل الأخطاء مباشرة</td><td><code>docker compose logs -f</code> (للخروج: Ctrl+C)</td></tr>
+  <tr><td>إعادة التشغيل</td><td><code>docker compose restart</code></td></tr>
+  <tr><td>إيقاف النظام</td><td><code>docker compose stop</code></td></tr>
+  <tr><td>تشغيله مجددًا</td><td><code>docker compose start</code> (أو <code>docker compose up -d</code>)</td></tr>
+  <tr><td>فحص سريع من السيرفر</td><td><code>curl http://127.0.0.1:8080/healthz</code> → يجب أن يرد <code>{"status":"ok"}</code></td></tr>
+  <tr><td>إزالة النظام نهائيًا (البيانات تبقى)</td><td><code>docker compose down</code></td></tr>
+  <tr><td>إزالة النظام <b>مع البيانات</b> (حذر!)</td><td><code>docker compose down -v</code></td></tr>
+</table>
+
+<h2 id="backup">9. النسخ الاحتياطي والاسترجاع</h2>
+<p>كل البيانات (الحسابات، كلمات السر المشفّرة، المحادثات) في ملف واحد <code>zakat.db</code> داخل مساحة تخزين Docker اسمها <code>zakat_data</code>. قاعدة المعرفة الفقهية جزء من الحزمة نفسها ولا تحتاج نسخًا احتياطيًا.</p>
+<h3>أخذ نسخة احتياطية (Linux)</h3>
+<pre>./backup.sh</pre>
+<p>يُنشئ ملفًا مثل <code>backups/zakat-2026-10-14_0900.db</code> ويحتفظ تلقائيًا بآخر 30 نسخة. انسخ مجلد <code>backups</code> دوريًا إلى مكان آخر (سيرفر النسخ الاحتياطي / قرص خارجي).</p>
+<h3>نسخة تلقائية يومية (Linux)</h3>
+<pre>crontab -e
+# أضف هذا السطر (نسخة كل يوم الساعة 2 فجرًا):
+0 2 * * * /home/user/zakat-ai/deploy/backup.sh >> /home/user/zakat-ai/deploy/backups/backup.log 2>&1</pre>
+<h3>الاسترجاع</h3>
+<pre>./restore.sh backups/zakat-2026-10-14_0900.db</pre>
+<h3>على Windows</h3>
+<pre>docker compose cp zakat-ai:/data/zakat.db C:\zakat-backups\zakat-2026-10-14.db     # نسخ
+docker compose cp C:\zakat-backups\zakat-2026-10-14.db zakat-ai:/data/zakat.db     # استرجاع
+docker compose restart</pre>
+
+<h2 id="update" class="pb">10. التحديث إلى نسخة جديدة</h2>
+<ol>
+  <li>خذ نسخة احتياطية أولًا (<code>./backup.sh</code>).</li>
+  <li>فكّ ضغط ملف ZIP الجديد <b>فوق</b> المجلد القديم (استبدال الملفات). ملف <code>.env</code> الخاص بكم لا يُستبدل لأنه غير موجود في الحزمة.</li>
+  <li>شغّل <code>./update.sh</code> (Linux) أو <code>docker compose up -d --build</code> (Windows).</li>
+</ol>
+<p>البيانات لا تتأثر بالتحديث لأنها في مساحة تخزين مستقلة عن الكود.</p>
+
+<h2 id="https">11. اختياري: اسم نطاق وشهادة HTTPS</h2>
+<p>داخل شبكة الصندوق يكفي http على المنفذ 8080. إذا أردتم رابطًا مثل <code>https://zakat-ai.zakatfund.gov.ly</code> فالأسهل وضع خادم <b>Caddy</b> أمام النظام (يحصل على الشهادة تلقائيًا):</p>
+<pre>sudo apt-get install -y caddy
+sudo nano /etc/caddy/Caddyfile</pre>
+<p>ضع في الملف:</p>
+<pre>zakat-ai.zakatfund.gov.ly {
+    reverse_proxy 127.0.0.1:8080
+}</pre>
+<pre>sudo systemctl reload caddy</pre>
+<p>ثم في <code>.env</code> اجعل <code>COOKIE_SECURE=1</code> وشغّل <code>docker compose up -d</code>. يجب أن يكون اسم النطاق موجّهًا (DNS) إلى عنوان السيرفر وأن يكون المنفذان 80 و443 مفتوحين.</p>
+
+<h2 id="trouble">12. حل المشاكل الشائعة</h2>
+<table>
+  <tr><th>المشكلة</th><th>السبب المحتمل والحل</th></tr>
+  <tr><td>الصفحة لا تفتح من الأجهزة الأخرى، وتفتح على السيرفر</td><td>جدار الحماية يمنع المنفذ. Linux: <code>sudo ufw allow 8080/tcp</code>. Windows: أضف قاعدة Inbound للمنفذ 8080 (القسم 4).</td></tr>
+  <tr><td><code>port is already allocated</code> عند التشغيل</td><td>المنفذ 8080 مستخدم ببرنامج آخر. غيّر <code>HOST_PORT</code> في <code>.env</code> إلى 8081 مثلًا ثم <code>docker compose up -d</code>.</td></tr>
+  <tr><td><code>permission denied while trying to connect to the Docker daemon</code></td><td>المستخدم ليس في مجموعة docker. نفّذ <code>sudo usermod -aG docker $USER</code> ثم سجّل الخروج والدخول.</td></tr>
+  <tr><td>تسجيل الدخول لا يثبت (يعيدك لنافذة الدخول)</td><td><code>COOKIE_SECURE=1</code> بينما الموقع يعمل بـ http. اجعله 0 وأعد التشغيل.</td></tr>
+  <tr><td>لا يستطيع الموظف إنشاء حساب: «رمز الدعوة غير صحيح»</td><td>أعطه القيمة الموجودة في <code>INVITE_CODE</code> أو اتركها فارغة.</td></tr>
+  <tr><td>«تجاوزت الحد المسموح من الأسئلة»</td><td>طبيعي عند الإفراط؛ ينتظر دقيقة. يمكن رفع <code>RATE_LIMIT_PER_MINUTE</code>.</td></tr>
+  <tr><td>أسعار الذهب/الفضة لا تظهر</td><td>السيرفر بلا إنترنت. النظام يعمل، والمستخدم يكتب سعر الغرام يدويًا في خانات الأسعار داخل الواجهة.</td></tr>
+  <tr><td>موظف نسي كلمة سره</td><td>فريق التقنية ينفّذ (استبدل البريد وكلمة السر الجديدة):<br><code>docker compose exec zakat-ai python -c "from app.store import Store; s=Store('/data/zakat.db'); u=s.get_user_by_email('name@zakat.ly'); s.change_password(u.id,'NewPass1234'); print('ok')"</code></td></tr>
+  <tr><td>حذف حساب المشرف الوحيد بالخطأ / لا يوجد مشرف</td><td>أضف بريد الشخص إلى <code>ADMIN_EMAILS</code> في <code>.env</code> وأعد التشغيل، ثم يسجّل حسابًا جديدًا بهذا البريد فيصبح مشرفًا.</td></tr>
+  <tr><td>النظام بطيء جدًا أو يتوقف</td><td>تحقق من الذاكرة: <code>docker stats</code>. أعد التشغيل: <code>docker compose restart</code>. راجع السجل: <code>docker compose logs --tail 200</code>.</td></tr>
+</table>
+
+<h2 id="security">13. ملاحظات أمنية وخصوصية البيانات</h2>
+<ul>
+  <li>كل البيانات تبقى <b>داخل سيرفر الصندوق</b>؛ لا تُرسل أي بيانات مستخدمين أو أسئلة إلى الخارج، إلا إذا فعّلتم مفتاح Gemini (عندها يُرسل نص السؤال والإجابة إلى Google لإعادة الصياغة فقط). إن كانت الخصوصية أولوية اتركوا المفتاح فارغًا.</li>
+  <li>كلمات السر محفوظة مشفّرة (scrypt) ولا يمكن لأحد، حتى المشرف، قراءتها.</li>
+  <li>فعّلوا <code>INVITE_CODE</code> حتى لا يسجّل أحد من خارج الصندوق، وقصروا الوصول إلى المنفذ 8080 على شبكة الصندوق الداخلية.</li>
+  <li>المشرف يرى أسئلة الموظفين كلها في لوحة التحكم (لأغراض المتابعة والجودة)؛ أبلغوا الموظفين بذلك.</li>
+  <li>خذوا نسخة احتياطية يومية (القسم 9) واحفظوها خارج السيرفر.</li>
+</ul>
+
+<p class="small" style="margin-top:40px">انتهى الدليل. للدعم الفني راجعوا ملف <code>README.md</code> في الحزمة أو تواصلوا مع الجهة المطوّرة.</p>
+</body>
+</html>

@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
+build/
+*.egg-info/
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# on-prem deployment: local settings and backups
+deploy/.env
+deploy/backups/

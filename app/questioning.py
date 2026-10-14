@@ -6,8 +6,10 @@ can affect the ruling or the calculation.
 """
 from __future__ import annotations
 
+import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from .normalize import extract_numbers, normalize
 
@@ -56,6 +58,29 @@ def _choice_extractor(options: tuple[Option, ...]) -> Callable[[str], Any]:
 def _first_number(text: str):
     nums = extract_numbers(text)
     return nums[0] if nums else None
+
+
+_GRAMS = re.compile(r"(\d[\d,\.]*)\s*(?:جرام|غرام|جم|غم|g)\b")
+_KARAT = re.compile(r"(?:عيار|قيراط)\s*(\d{2})")
+
+
+def _grams(text: str):
+    """Weight explicitly followed by a gram unit; falls back to the only number when no karat is present."""
+    n = normalize(text)
+    m = _GRAMS.search(n)
+    if m:
+        return float(m.group(1).replace(",", ""))
+    nums = extract_numbers(text)
+    if len(nums) == 1 and not _KARAT.search(n):
+        return nums[0]
+    return None
+
+
+def _karat(text: str):
+    m = _KARAT.search(normalize(text))
+    if m and m.group(1) in ("24", "22", "21", "18"):
+        return m.group(1)
+    return None
 
 
 YES_NO = (Option("yes", "نعم", ("نعم", "ايوه", "اجل", "بالتاكيد")), Option("no", "لا", ("لا ", "كلا", "ليس")))
@@ -136,6 +161,9 @@ SLOTS: list[Slot] = [
          ("cash", "bank", "salary", "gold", "silver", "jewelry", "trade_goods", "stocks", "crypto", "ewallet", "property_for_sale", "debt_owed_to_you"), HAWL, extract=_choice_extractor(HAWL)),
     Slot("other_money", "هل لديك أموال أخرى من نفس الجنس (نقود/حسابات/رواتب مدخرة) تُضاف إلى هذا المبلغ؟", "الأموال من جنس واحد تُضمّ إلى بعضها في تكميل النصاب وفي الحساب.", "choice",
          ("cash", "bank", "salary", "ewallet"), (Option("no", "لا", ("لا",)), Option("yes", "نعم (أذكر مجموعها)", ("نعم",))), extract=None),
+    Slot("other_money_amount", "ما مجموع الأموال الأخرى من نفس الجنس التي تُضاف إلى هذا المبلغ؟", "تُضمّ إلى المبلغ الأصلي في تكميل النصاب والحساب.", "number",
+         ("cash", "bank", "salary", "ewallet"), unit_ar="مبلغ", required_for="calculation",
+         depends_on=lambda a: a.get("other_money") == "yes", extract=None),
     Slot("purpose", "هل المال مدخر أم متعلق بتجارة أم يُصرف في النفقة ولا يبقى؟", "المال المدخر تجري عليه أحكام النقد، ورأس مال التجارة يُضمّ إلى عروضها، وما يُنفق قبل الحول لا زكاة فيه.", "choice",
          ("cash", "bank", "salary", "ewallet"), PURPOSE_MONEY, extract=_choice_extractor(PURPOSE_MONEY)),
     Slot("debts", "هل عليك ديون أو التزامات؟ وما نوعها؟", "أثر الدين في منع الزكاة مسألة خلافية بين المناهج؛ لذا يهم معرفة وجود الدين ونوعه.", "choice",
@@ -145,11 +173,11 @@ SLOTS: list[Slot] = [
          depends_on=lambda a: a.get("debts") in ("due_now", "installments")),
     # --- gold / silver / jewelry ---
     Slot("gold_grams", "ما وزن الذهب بالجرام؟", "نصاب الذهب بالوزن (85 جرامًا تقريبًا من الذهب الخالص) ولا يُعرف بدون الوزن.", "number",
-         ("gold", "jewelry"), unit_ar="جرام", required_for="calculation", extract=_first_number),
+         ("gold", "jewelry"), unit_ar="جرام", required_for="calculation", extract=_grams),
     Slot("karat", "ما عيار الذهب؟", "النصاب يُحسب بالذهب الخالص، فالعيار الأقل يُنسب إلى 24 للوصول إلى الوزن الصافي.", "choice",
-         ("gold", "jewelry"), KARAT, required_for="calculation", extract=_choice_extractor(KARAT)),
+         ("gold", "jewelry"), KARAT, required_for="calculation", extract=_karat),
     Slot("silver_grams", "ما وزن الفضة بالجرام؟", "نصاب الفضة بالوزن (595 جرامًا تقريبًا).", "number",
-         ("silver",), unit_ar="جرام", required_for="calculation", extract=_first_number),
+         ("silver",), unit_ar="جرام", required_for="calculation", extract=_grams),
     Slot("jewelry_use", "هل الذهب للّبس والزينة، أم مدخر لا يُلبس، أم معدّ للبيع؟", "الحلي المستعمل هو محل الخلاف الفقهي؛ أما المدخر والمعدّ للتجارة فتجب زكاته باتفاق.", "choice",
          ("jewelry", "gold"), JEWELRY_USE, extract=_choice_extractor(JEWELRY_USE)),
     # --- trade ---
