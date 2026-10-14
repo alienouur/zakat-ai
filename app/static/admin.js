@@ -36,6 +36,7 @@
   };
   const table = (heads, rows, empty) => {
     if (!rows.length) return el("div", { class: "empty", text: empty || "لا بيانات بعد." });
+    for (const tr of rows) [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.l = heads[i]; else td.classList.add("acts"); });
     return el("table", { class: "tbl" }, [
       el("thead", {}, el("tr", {}, heads.map((h) => el("th", { text: h })))),
       el("tbody", {}, rows),
@@ -142,8 +143,10 @@
       hbars("#chart-clone", a.questions_by_clone, CLONE);
       hbars("#chart-stage", a.answers_by_stage, STAGE, "stage");
       renderOffices(a); renderTop(a); renderUsers();
-      const kb = Object.entries(a.kb || {}).map(([k, v]) => `${CLONE[k] || k}: ${typeof v === "object" ? (v.records ?? JSON.stringify(v)) : v}`).join(" · ");
-      $("#system").textContent = `قاعدة المعرفة — ${kb}. طبقة الصياغة (Gemini): ${a.llm_enabled ? "مفعّلة" : "غير مفعّلة"}. جلسات نشطة: ${a.active_sessions}.`;
+      const sys = $("#system"); sys.innerHTML = "";
+      for (const [k, v] of Object.entries(a.kb || {})) sys.append(el("div", { class: "sys-item" }, [el("b", { text: String(typeof v === "object" ? (v.records ?? "—") : v) }), el("span", { text: `سجل · ${CLONE[k] || k}` })]));
+      sys.append(el("div", { class: "sys-item" }, [el("b", { text: a.llm_enabled ? "مفعّلة" : "غير مفعّلة" }), el("span", { text: "طبقة الصياغة (Gemini)" })]));
+      sys.append(el("div", { class: "sys-item" }, [el("b", { text: String(a.active_sessions) }), el("span", { text: "جلسات دخول نشطة" })]));
       await loadActivity();
     } catch (err) {
       $("#system").textContent = err.message;
@@ -157,6 +160,16 @@
     } catch (_) { state.me = null; }
     if (!state.me || state.me.role !== "admin") { $("#gate").hidden = false; return; }
     $("#dash").hidden = false;
+    $("#subnav").hidden = false;
+    const links = [...document.querySelectorAll("#subnav a")];
+    const secs = links.map((l) => document.querySelector(l.getAttribute("href"))).filter(Boolean);
+    const mark = () => {
+      const y = window.scrollY + 140;
+      let cur = links[0];
+      for (let i = 0; i < secs.length; i++) if (secs[i].offsetTop <= y) cur = links[i];
+      links.forEach((l) => l.classList.toggle("on", l === cur));
+    };
+    window.addEventListener("scroll", mark, { passive: true });
     $("#days").addEventListener("change", (e) => { state.days = parseInt(e.target.value, 10); load(); });
     $("#btn-refresh").addEventListener("click", load);
     $("#btn-logout").addEventListener("click", async () => { await api("/api/auth/logout", {}); location.href = "/"; });

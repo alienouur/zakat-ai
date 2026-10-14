@@ -13,20 +13,27 @@
   <link rel="stylesheet" href="/static/admin.css" />
 </head>
 <body class="admin-body">
-  <header class="topbar">
-    <div class="brand">
+  <header class="topbar admin-top">
+    <a class="brand" href="/" title="العودة إلى النظام">
       <img class="mark" src="/static/brand/symbol-white.png" alt="شعار صندوق الزكاة" width="52" height="34" />
       <div class="brand-text">
         <h1>لوحة التحكم <span class="h1-sub">· صندوق الزكاة — المستشار الفقهي</span></h1>
-        <p class="sub">المستخدمون، الحسابات، وتتبّع الاستخدام</p>
+        <p class="sub">المستخدمون والحسابات وتتبّع الاستخدام</p>
       </div>
-    </div>
+    </a>
     <div class="topbar-actions">
-      <a class="btn ghost" href="/">العودة إلى النظام</a>
-      <button id="btn-refresh" class="ghost" type="button">تحديث</button>
-      <button id="btn-logout" class="ghost" type="button">تسجيل الخروج</button>
+      <a class="btn ghost" href="/"><span class="ic">⌂</span><span class="lb">النظام</span></a>
+      <button id="btn-refresh" class="ghost" type="button"><span class="ic">↻</span><span class="lb">تحديث</span></button>
+      <button id="btn-logout" class="ghost" type="button"><span class="ic">⎋</span><span class="lb">خروج</span></button>
     </div>
   </header>
+  <nav class="subnav" id="subnav" hidden>
+    <a href="#sec-overview" class="on">نظرة عامة</a>
+    <a href="#sec-dist">التوزيع</a>
+    <a href="#sec-users">المستخدمون</a>
+    <a href="#sec-activity">سجل الأسئلة</a>
+    <a href="#sec-system">النظام</a>
+  </nav>
 
   <main class="admin-main">
     <section id="gate" class="card gate" hidden>
@@ -37,13 +44,14 @@
 
     <div id="dash" hidden>
       <section class="kpis" id="kpis"></section>
+      <a id="sec-overview" class="anchor"></a>
 
       <div class="grid-2">
         <section class="card">
           <div class="card-head"><h2>الأسئلة يوميًا</h2><select id="days"><option value="7">آخر 7 أيام</option><option value="30" selected>آخر 30 يومًا</option><option value="90">آخر 90 يومًا</option><option value="365">آخر سنة</option></select></div>
           <div id="chart-days" class="bars"></div>
         </section>
-        <section class="card">
+        <section class="card" id="sec-dist">
           <div class="card-head"><h2>التوزيع</h2></div>
           <h3>حسب المنهج</h3>
           <div id="chart-clone" class="hbars"></div>
@@ -63,7 +71,7 @@
         </section>
       </div>
 
-      <section class="card">
+      <section class="card" id="sec-users">
         <div class="card-head">
           <h2>المستخدمون والحسابات</h2>
           <div class="actions"><input id="users-search" type="search" placeholder="بحث بالاسم أو البريد…" /><a class="btn ghost small" href="/api/admin/export/users.csv">تصدير CSV</a></div>
@@ -71,7 +79,7 @@
         <div id="users" class="table-wrap"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="sec-activity">
         <div class="card-head">
           <h2>سجل الأسئلة (تتبّع البيانات)</h2>
           <div class="actions"><input id="activity-search" type="search" placeholder="بحث في الأسئلة أو البريد…" /><a class="btn ghost small" href="/api/admin/export/questions.csv">تصدير CSV</a></div>
@@ -79,9 +87,9 @@
         <div id="activity" class="table-wrap"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="sec-system">
         <div class="card-head"><h2>حالة النظام</h2></div>
-        <div id="system" class="hint"></div>
+        <div id="system" class="sys"></div>
       </section>
     </div>
   </main>
