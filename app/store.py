@@ -116,8 +116,8 @@ class Store:
         role = "admin" if (self.user_count() == 0 or email in self.admin_emails) else "user"
         with self._lock:
             cur = self._conn.execute(
-                "INSERT INTO users(email, name, password_hash, salt, role, office, created_at) VALUES (?,?,?,?,?,?,?)",
-                (email, name.strip(), hash_password(password, salt), salt, role, (office or "").strip() or None, _now()),
+                "INSERT INTO users(email, name, password_hash, salt, role, office, created_at, last_login_at) VALUES (?,?,?,?,?,?,?,?)",
+                (email, name.strip(), hash_password(password, salt), salt, role, (office or "").strip() or None, _now(), _now()),
             )
             self._conn.commit()
         return self.get_user(cur.lastrowid)  # type: ignore[return-value]
@@ -260,6 +260,97 @@ class Store:
             "questions_by_clone": {r["clone"]: r["n"] for r in c.execute("SELECT clone, COUNT(*) AS n FROM conversations GROUP BY clone")},
             "active_sessions": c.execute("SELECT COUNT(*) FROM sessions WHERE expires_at > ?", (_now(),)).fetchone()[0],
         }
+
+
+    # ------------------------------------------------------------- admin analytics
+    def analytics(self, days: int = 30) -> dict:
+        """Usage figures for the admin dashboard; derived from saved messages only."""
+        c = self._conn
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+        per_day = {
+            r["d"]: r["n"]
+            for r in c.execute(
+                "SELECT substr(created_at,1,10) AS d, COUNT(*) AS n FROM messages WHERE role='user' AND created_at>=? GROUP BY d ORDER BY d",
+                (since,),
+            )
+        }
+        users_per_day = {
+            r["d"]: r["n"]
+            for r in c.execute(
+                "SELECT substr(created_at,1,10) AS d, COUNT(*) AS n FROM users WHERE created_at>=? GROUP BY d ORDER BY d",
+                (since,),
+            )
+        }
+        by_clone = {
+            r["clone"]: r["n"]
+            for r in c.execute(
+                "SELECT c.clone, COUNT(*) AS n FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE m.role='user' GROUP BY c.clone"
+            )
+        }
+        by_stage = {
+            (r["stage"] or "answer"): r["n"]
+            for r in c.execute(
+                "SELECT json_extract(content,'$.stage') AS stage, COUNT(*) AS n FROM messages WHERE role='assistant' GROUP BY stage"
+            )
+        }
+        by_office = [
+            {"office": r["office"] or "—", "users": r["u"], "questions": r["q"]}
+            for r in c.execute(
+                """SELECT u.office, COUNT(DISTINCT u.id) AS u,
+                          (SELECT COUNT(*) FROM messages m JOIN conversations c ON c.id=m.conversation_id
+                           WHERE m.role='user' AND c.user_id IN (SELECT id FROM users x WHERE COALESCE(x.office,'')=COALESCE(u.office,''))) AS q
+                   FROM users u GROUP BY COALESCE(u.office,'') ORDER BY q DESC"""
+            )
+        ]
+        top_users = [
+            {"id": r["id"], "name": r["name"], "email": r["email"], "office": r["office"], "questions": r["q"], "last_login_at": r["last_login_at"]}
+            for r in c.execute(
+                """SELECT u.id, u.name, u.email, u.office, u.last_login_at,
+                          (SELECT COUNT(*) FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE m.role='user' AND c.user_id=u.id) AS q
+                   FROM users u ORDER BY q DESC, u.created_at LIMIT 10"""
+            )
+        ]
+        active = lambda d: c.execute(  # noqa: E731
+            "SELECT COUNT(DISTINCT c.user_id) FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE m.role='user' AND m.created_at>=?",
+            ((datetime.now(timezone.utc) - timedelta(days=d)).isoformat(timespec="seconds"),),
+        ).fetchone()[0]
+        total_q = c.execute("SELECT COUNT(*) FROM messages WHERE role='user'").fetchone()[0]
+        return {
+            "days": days,
+            "questions_total": total_q,
+            "questions_per_day": per_day,
+            "new_users_per_day": users_per_day,
+            "questions_by_clone": by_clone,
+            "answers_by_stage": by_stage,
+            "by_office": by_office,
+            "top_users": top_users,
+            "active_users_7d": active(7),
+            "active_users_30d": active(30),
+            **self.stats(),
+        }
+
+    def activity(self, limit: int = 100, user_id: int | None = None, query: str | None = None) -> list[dict]:
+        """Latest questions with who asked them and how the system answered (stage)."""
+        sql = """SELECT m.id, m.created_at, m.conversation_id, c.clone, c.title,
+                        json_extract(m.content,'$.text') AS text,
+                        u.id AS user_id, u.name, u.email, u.office,
+                        (SELECT json_extract(a.content,'$.stage') FROM messages a
+                          WHERE a.conversation_id=m.conversation_id AND a.role='assistant' AND a.id>m.id ORDER BY a.id LIMIT 1) AS stage
+                 FROM messages m JOIN conversations c ON c.id=m.conversation_id JOIN users u ON u.id=c.user_id
+                 WHERE m.role='user'"""
+        args: list = []
+        if user_id is not None:
+            sql += " AND u.id=?"
+            args.append(user_id)
+        if query:
+            sql += " AND (json_extract(m.content,'$.text') LIKE ? OR u.email LIKE ? OR u.name LIKE ?)"
+            args += [f"%{query}%"] * 3
+        sql += " ORDER BY m.id DESC LIMIT ?"
+        args.append(limit)
+        return [dict(r) for r in self._conn.execute(sql, args)]
+
+    def export_rows(self) -> list[dict]:
+        return self.activity(limit=1_000_000)[::-1]
 
 
 class RateLimiter:

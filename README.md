@@ -45,6 +45,16 @@ export COOKIE_SECURE=0              # للتشغيل المحلي على http ف
 
 واجهات السجل: `GET /api/history`، `GET /api/history/{id}`، `GET /api/history/search?q=`، `PATCH`/`DELETE /api/history/{id}`؛ ويقبل `/api/ask` و`/api/compare` حقل `conversation_id` لمتابعة محادثة محفوظة.
 
+### لوحة التحكم
+`/admin` (للمشرفين فقط): المستخدمون والحسابات، الأسئلة يوميًا، التوزيع حسب المنهج ونوع الرد، حسب الجهة، سجل الأسئلة مع بحث، وتصدير CSV (`/api/admin/export/users.csv`، `/api/admin/export/questions.csv`). واجهات JSON: `/api/admin/analytics?days=30`، `/api/admin/activity?limit=100&q=...`.
+
+### التشغيل الذاتي على سيرفر المؤسسة (On-Premises)
+المجلد `deploy/` يحتوي على `docker-compose.yml` و`.env.example` وملفات `install.sh` / `install.ps1` / `backup.sh` / `restore.sh` / `update.sh`. الدليل الكامل خطوة بخطوة لفريق تقنية المعلومات: `docs/دليل_التشغيل_لفريق_تقنية_المعلومات.pdf`. باختصار:
+
+```bash
+cd deploy && cp .env.example .env && ./install.sh   # ثم افتح http://السيرفر:8080
+```
+
 ## التحقق
 
 ```bash

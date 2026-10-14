@@ -301,3 +301,19 @@ button.ghost.danger:hover { background: var(--danger-soft); }
 
 /* flex/grid display rules must not defeat the hidden attribute (auth forms, invite row, user chip) */
 [hidden] { display: none !important; }
+
+.admin-link {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--teal-800);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  border-radius: 10px;
+  padding: .4rem .8rem;
+  text-decoration: none;
+}
+
+.admin-link:hover {
+  background: var(--gold);
+  color: var(--teal-900);
+}

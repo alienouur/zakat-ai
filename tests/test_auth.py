@@ -137,3 +137,28 @@ def test_password_change_revokes_old_sessions(client):
 
 def test_env_defaults_do_not_leak_into_other_tests():
     assert "ZAKAT_DATA_DIR" in os.environ or True
+
+
+def test_admin_dashboard_analytics_activity_and_exports(client):
+    register(client, office="مكتب طرابلس")  # admin
+    client.post("/api/ask", json={"clone": "ibn_uthaymeen", "message": "هل في الحلي زكاة", "use_llm": False})
+    client.post("/api/ask", json={"clone": "ibn_baz", "message": "ما هو الطقس اليوم", "use_llm": False})
+    a = client.get("/api/admin/analytics?days=7").json()
+    assert a["questions_total"] == 2 and a["users"] == 1 and a["active_users_7d"] == 1
+    assert sum(a["questions_per_day"].values()) == 2
+    assert a["questions_by_clone"] == {"ibn_uthaymeen": 1, "ibn_baz": 1}
+    assert a["answers_by_stage"].get("out_of_scope") == 1
+    assert a["by_office"][0]["office"] == "مكتب طرابلس" and a["top_users"][0]["questions"] == 2
+    act = client.get("/api/admin/activity?limit=10").json()
+    assert len(act) == 2 and act[0]["text"] == "ما هو الطقس اليوم" and act[0]["stage"] == "out_of_scope"
+    assert act[0]["email"] == "ali@example.com"
+    assert len(client.get("/api/admin/activity?q=الحلي").json()) == 1
+    csv_q = client.get("/api/admin/export/questions.csv")
+    assert csv_q.status_code == 200 and csv_q.text.startswith("\ufeff") and "الحلي" in csv_q.text
+    assert "ali@example.com" in client.get("/api/admin/export/users.csv").text
+    assert client.get("/admin").status_code == 200
+
+    other = TestClient(main.app)
+    register(other, email="b@example.com")
+    for path in ("/api/admin/analytics", "/api/admin/activity", "/api/admin/export/questions.csv", "/api/admin/export/users.csv"):
+        assert other.get(path).status_code == 403, path

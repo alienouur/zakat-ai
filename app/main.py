@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+import csv
+import io
+
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -250,6 +253,41 @@ def admin_stats(_: Annotated[User, Depends(require_admin)]) -> dict:
     return {**store.stats(), "kb": kb.stats(), "llm_enabled": rephraser.enabled}
 
 
+@app.get("/api/admin/analytics")
+def admin_analytics(_: Annotated[User, Depends(require_admin)], days: int = 30) -> dict:
+    return {**store.analytics(max(1, min(days, 365))), "kb": kb.stats(), "llm_enabled": rephraser.enabled}
+
+
+@app.get("/api/admin/activity")
+def admin_activity(_: Annotated[User, Depends(require_admin)], limit: int = 100, user_id: int | None = None, q: str | None = None) -> list[dict]:
+    return store.activity(limit=max(1, min(limit, 1000)), user_id=user_id, query=(q or "").strip() or None)
+
+
+def _csv_response(rows: list[dict], columns: list[tuple[str, str]], filename: str) -> StreamingResponse:
+    buf = io.StringIO()
+    buf.write("\ufeff")  # BOM so Excel opens Arabic text correctly
+    w = csv.writer(buf)
+    w.writerow([label for _, label in columns])
+    for r in rows:
+        w.writerow(["" if r.get(k) is None else r.get(k) for k, _ in columns])
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.get("/api/admin/export/users.csv")
+def admin_export_users(_: Annotated[User, Depends(require_admin)]) -> StreamingResponse:
+    cols = [("id", "المعرف"), ("name", "الاسم"), ("email", "البريد"), ("office", "الجهة"), ("role", "الدور"),
+            ("created_at", "تاريخ التسجيل"), ("last_login_at", "آخر دخول"), ("conversations", "عدد المحادثات")]
+    return _csv_response(store.list_users(), cols, "zakat-users.csv")
+
+
+@app.get("/api/admin/export/questions.csv")
+def admin_export_questions(_: Annotated[User, Depends(require_admin)]) -> StreamingResponse:
+    cols = [("created_at", "الوقت"), ("name", "الاسم"), ("email", "البريد"), ("office", "الجهة"), ("clone", "المنهج"),
+            ("text", "السؤال"), ("stage", "نوع الرد"), ("conversation_id", "رقم المحادثة")]
+    return _csv_response(store.export_rows(), cols, "zakat-questions.csv")
+
+
 @app.patch("/api/admin/users/{user_id}")
 def admin_set_role(user_id: int, req: RoleRequest, admin: Annotated[User, Depends(require_admin)]) -> dict:
     if user_id == admin.id:
@@ -416,6 +454,10 @@ if STATIC_DIR.exists():
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(str(STATIC_DIR / "index.html"))
+
+    @app.get("/admin")
+    def admin_page() -> FileResponse:
+        return FileResponse(str(STATIC_DIR / "admin.html"))
 
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon() -> Response:
