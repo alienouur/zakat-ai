@@ -66,16 +66,23 @@
       const d = new Date(now); d.setUTCDate(now.getUTCDate() - i);
       days.push(d.toISOString().slice(0, 10));
     }
-    const max = Math.max(1, ...days.map((d) => a.questions_per_day[d] || 0));
-    for (const d of days) {
-      const n = a.questions_per_day[d] || 0;
-      const b = el("div", { class: "b", title: `${d}: ${n}`, style: `height:${Math.max(2, (n / max) * 150)}px` });
-      if (n) b.append(el("span", { text: String(n) }));
+    // more than ~90 bars never fit a card: group into weeks for long ranges
+    const step = a.days > 90 ? 7 : 1;
+    const buckets = [];
+    for (let i = 0; i < days.length; i += step) {
+      const slice = days.slice(i, i + step);
+      buckets.push({ from: slice[0], to: slice[slice.length - 1], n: slice.reduce((t, d) => t + (a.questions_per_day[d] || 0), 0) });
+    }
+    const max = Math.max(1, ...buckets.map((b) => b.n));
+    for (const bk of buckets) {
+      const label = step === 1 ? bk.from : `${bk.from} → ${bk.to}`;
+      const b = el("div", { class: "b", title: `${label}: ${bk.n}`, style: `height:${Math.max(2, (bk.n / max) * 140)}px` });
+      if (bk.n && buckets.length <= 60) b.append(el("span", { text: String(bk.n) }));
       box.append(b);
     }
-    const x = $("#chart-days").nextElementSibling;
+    const x = box.nextElementSibling;
     if (x && x.classList.contains("bars-x")) x.remove();
-    box.after(el("div", { class: "bars-x" }, [el("span", { text: days[0] }), el("span", { text: days[days.length - 1] })]));
+    box.after(el("div", { class: "bars-x" }, [el("span", { text: days[0] }), step > 1 ? el("span", { class: "hint", text: "مجموع كل أسبوع" }) : null, el("span", { text: days[days.length - 1] })]));
   }
 
   function hbars(target, data, labels, cls) {

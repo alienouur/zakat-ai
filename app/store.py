@@ -161,6 +161,9 @@ class Store:
 
     def delete_user(self, user_id: int) -> None:
         with self._lock:
+            self._conn.execute("DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id=?)", (user_id,))
+            self._conn.execute("DELETE FROM conversations WHERE user_id=?", (user_id,))
+            self._conn.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
             self._conn.execute("DELETE FROM users WHERE id=?", (user_id,))
             self._conn.commit()
 
@@ -311,7 +314,7 @@ class Store:
             )
         ]
         active = lambda d: c.execute(  # noqa: E731
-            "SELECT COUNT(DISTINCT c.user_id) FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE m.role='user' AND m.created_at>=?",
+            "SELECT COUNT(DISTINCT c.user_id) FROM messages m JOIN conversations c ON c.id=m.conversation_id JOIN users u ON u.id=c.user_id WHERE m.role='user' AND m.created_at>=?",
             ((datetime.now(timezone.utc) - timedelta(days=d)).isoformat(timespec="seconds"),),
         ).fetchone()[0]
         total_q = c.execute("SELECT COUNT(*) FROM messages WHERE role='user'").fetchone()[0]
@@ -334,8 +337,8 @@ class Store:
         sql = """SELECT m.id, m.created_at, m.conversation_id, c.clone, c.title,
                         json_extract(m.content,'$.text') AS text,
                         u.id AS user_id, u.name, u.email, u.office,
-                        (SELECT json_extract(a.content,'$.stage') FROM messages a
-                          WHERE a.conversation_id=m.conversation_id AND a.role='assistant' AND a.id>m.id ORDER BY a.id LIMIT 1) AS stage
+                        COALESCE((SELECT json_extract(a.content,'$.stage') FROM messages a
+                          WHERE a.conversation_id=m.conversation_id AND a.role='assistant' AND a.id>m.id ORDER BY a.id LIMIT 1), 'answer') AS stage
                  FROM messages m JOIN conversations c ON c.id=m.conversation_id JOIN users u ON u.id=c.user_id
                  WHERE m.role='user'"""
         args: list = []

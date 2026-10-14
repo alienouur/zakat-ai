@@ -162,3 +162,19 @@ def test_admin_dashboard_analytics_activity_and_exports(client):
     register(other, email="b@example.com")
     for path in ("/api/admin/analytics", "/api/admin/activity", "/api/admin/export/questions.csv", "/api/admin/export/users.csv"):
         assert other.get(path).status_code == 403, path
+
+
+def test_deleting_user_removes_their_activity_from_analytics(client):
+    register(client)  # admin
+    other = TestClient(main.app)
+    register(other, email="b@example.com")
+    other.post("/api/ask", json={"clone": "ibn_baz", "message": "هل في الحلي زكاة", "use_llm": False})
+    client.post("/api/compare", json={"message": "هل في الحلي زكاة", "use_llm": False})
+    assert client.get("/api/admin/analytics").json()["active_users_7d"] == 2
+    uid = [u for u in client.get("/api/admin/users").json() if u["email"] == "b@example.com"][0]["id"]
+    assert client.delete(f"/api/admin/users/{uid}").status_code == 200
+    a = client.get("/api/admin/analytics").json()
+    assert a["users"] == 1 and a["active_users_7d"] == 1 and a["questions_total"] == 1
+    act = client.get("/api/admin/activity").json()
+    assert len(act) == 1 and act[0]["stage"] == "answer"  # comparative answers have no stage field
+    assert ",answer," in client.get("/api/admin/export/questions.csv").text

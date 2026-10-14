@@ -317,3 +317,8 @@ button.ghost.danger:hover { background: var(--danger-soft); }
   background: var(--gold);
   color: var(--teal-900);
 }
+
+@media (max-width: 900px) {
+  /* the in-dialog user table is too cramped on phones; the full dashboard (/admin) replaces it */
+  #admin-users { display: none; }
+}
