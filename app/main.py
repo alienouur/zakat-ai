@@ -416,3 +416,9 @@ if STATIC_DIR.exists():
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(str(STATIC_DIR / "index.html"))
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f6b5c"/>'
+               '<text x="32" y="46" font-size="40" font-family="serif" font-weight="700" fill="#fff" text-anchor="middle">ز</text></svg>')
+        return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})

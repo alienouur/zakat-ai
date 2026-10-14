@@ -464,6 +464,10 @@
     info.innerHTML = "";
     info.append(el("div", {}, [el("strong", { text: u.name }), el("span", { class: `badge role`, text: u.role === "admin" ? "مشرف" : "مستخدم" })]));
     info.append(el("div", { class: "hint", text: u.email + (u.office ? ` — ${u.office}` : "") }));
+    const pf = $("#password-form");
+    pf.reset();
+    pf.querySelector("h4").textContent = "تغيير كلمة المرور";
+    showAuthError(pf, "");
     const panel = $("#admin-panel");
     panel.hidden = u.role !== "admin";
     $("#account-dialog").showModal();

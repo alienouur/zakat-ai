@@ -263,7 +263,8 @@ button.ghost.danger:hover { background: var(--danger-soft); }
 .account-info { font-size: .95rem; margin-bottom: .4rem; }
 .account-info .role { display: inline-block; margin-inline-start: .4rem; }
 .account-actions { margin-top: 1rem; border-top: 1px dashed var(--line); padding-top: .7rem; display: flex; justify-content: flex-end; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: .86rem; margin-top: .4rem; }
+#admin-users { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: .86rem; margin-top: .4rem; }
 .admin-table th, .admin-table td { border-bottom: 1px solid var(--line); padding: .3rem .4rem; text-align: start; }
 .admin-table td button { font-size: .8rem; padding: .15rem .5rem; }
 .msg.history-note { background: #fbf8ef; border-style: dashed; box-shadow: none; color: var(--muted); font-size: .9rem; }
