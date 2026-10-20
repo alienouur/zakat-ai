@@ -6,6 +6,9 @@ Layout (one independent dataset per clone):
     zakat_knowledge_base/<clone>/metadata/clone.json     -> CloneMeta
     zakat_knowledge_base/<clone>/metadata/sources.json   -> list of Source (bibliography)
 
+A dataset may also live in its own top-level folder with the same inner layout,
+registered in ``EXTRA_DATASETS`` (e.g. لائحة_الزكاة/ -> libya_zakat_fund).
+
 Records never cross clone boundaries: a record's ``clone`` field must match the
 directory it lives in, and retrieval is always filtered by clone.
 """
@@ -18,6 +21,11 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 KB_ROOT = Path(__file__).resolve().parent.parent / "zakat_knowledge_base"
+
+# Datasets kept in their own top-level folder (outside KB_ROOT), mapped to their clone id.
+EXTRA_DATASETS: dict[str, Path] = {
+    "libya_zakat_fund": KB_ROOT.parent / "لائحة_الزكاة",
+}
 
 CloneId = Literal["albani", "ibn_uthaymeen", "ibn_baz", "maliki", "libya_zakat_fund", "comparative"]
 VerificationStatus = Literal["verified", "partially_verified", "unverified"]
@@ -168,8 +176,9 @@ class CloneMeta(BaseModel):
 
 
 class KnowledgeBase:
-    def __init__(self, root: Path = KB_ROOT):
+    def __init__(self, root: Path = KB_ROOT, extra: dict[str, Path] | None = None):
         self.root = root
+        self.extra = EXTRA_DATASETS if extra is None else extra
         self.records: list[Record] = []
         self.by_clone: dict[str, list[Record]] = {}
         self.meta: dict[str, CloneMeta] = {}
@@ -179,10 +188,9 @@ class KnowledgeBase:
 
     def load(self) -> None:
         self.records, self.by_clone, self.meta, self.bibliography, self.errors = [], {}, {}, {}, []
-        if not self.root.exists():
-            return
-        for clone_dir in sorted(p for p in self.root.iterdir() if p.is_dir()):
-            clone = clone_dir.name
+        dirs = [(p.name, p) for p in sorted(self.root.iterdir()) if p.is_dir()] if self.root.exists() else []
+        dirs += [(clone, path) for clone, path in self.extra.items() if path.is_dir()]
+        for clone, clone_dir in dirs:
             meta_dir = clone_dir / "metadata"
             if (meta_dir / "clone.json").exists():
                 try:
@@ -211,7 +219,7 @@ class KnowledgeBase:
                         self.errors.append(f"{path}: {e}")
                         continue
                     if rec.clone != clone:
-                        self.errors.append(f"{path}: record {rec.id} has clone={rec.clone} but lives in {clone}/")
+                        self.errors.append(f"{path}: record {rec.id} has clone={rec.clone} but lives in {clone_dir.name}/")
                         continue
                     self.records.append(rec)
                     self.by_clone.setdefault(clone, []).append(rec)
