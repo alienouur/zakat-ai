@@ -1,0 +1,383 @@
+{
+  "_description_ar": "جداول منظمة مستخرجة من لائحة صندوق الزكاة الليبي رقم (1) لسنة 2026م لاستعمالها مباشرة في الحاسبة وفي إجابات الحدود القصوى. كل عنصر يحمل رقم المادة والصفحة. المبالغ بالدينار الليبي وقابلة للتعديل بقرار من مجلس الإدارة (المادة 28).",
+  "currency": "LYD",
+  "cash": {
+    "article": 4,
+    "page": 2,
+    "nisab_gold_grams": 85,
+    "nisab_silver_grams": 595,
+    "rate": 0.025,
+    "divisor": 40,
+    "hawl": "lunar_year_from_reaching_nisab",
+    "payment_currency_note_ar": "تُخرج زكاة كافة العملات بالدينار الليبي بسعر يوم الإخراج",
+    "nisab_choice_note_ar": "اللائحة لم تحدد أيّ النصابين يُعتمد"
+  },
+  "crops": {
+    "article": 4,
+    "page": 5,
+    "nisab_awsuq": 5,
+    "saa_per_wasq": 60,
+    "nisab_kg_approx": 750,
+    "rate_natural_irrigation": 0.1,
+    "rate_mechanical_irrigation": 0.05,
+    "due": "at_harvest_no_hawl"
+  },
+  "trade_goods": {
+    "article": 4,
+    "page": 5,
+    "valuation": "market_value",
+    "rate": 0.025
+  },
+  "zakat_fitr": {
+    "article": 26,
+    "page": 22,
+    "amount": "1 saa per person of local staple",
+    "kg_approx": 2.5,
+    "deadline": "before_eid_prayer"
+  },
+  "livestock": {
+    "article": 4,
+    "camels": {
+      "page": 3,
+      "brackets": [
+        [
+          1,
+          4,
+          "لا شيء فيها"
+        ],
+        [
+          5,
+          9,
+          "شاة واحدة"
+        ],
+        [
+          10,
+          14,
+          "شاتان"
+        ],
+        [
+          15,
+          19,
+          "3 شياه"
+        ],
+        [
+          20,
+          24,
+          "4 شياه"
+        ],
+        [
+          25,
+          35,
+          "بنت مخاض"
+        ],
+        [
+          36,
+          45,
+          "بنت لبون"
+        ],
+        [
+          46,
+          60,
+          "حقة"
+        ],
+        [
+          61,
+          75,
+          "جذعة"
+        ],
+        [
+          76,
+          90,
+          "بنتا لبون"
+        ],
+        [
+          91,
+          120,
+          "حقتان"
+        ],
+        [
+          121,
+          129,
+          "ثلاث بنات لبون"
+        ]
+      ],
+      "beyond": "في كل أربعين بنت لبون، وفي كل خمسين حقة"
+    },
+    "cattle": {
+      "page": "3-4",
+      "brackets": [
+        [
+          1,
+          29,
+          "لا شيء فيها"
+        ],
+        [
+          30,
+          39,
+          "تبيع"
+        ],
+        [
+          40,
+          59,
+          "مسنة"
+        ],
+        [
+          60,
+          69,
+          "تبيعان"
+        ],
+        [
+          70,
+          79,
+          "مسنة + تبيع"
+        ],
+        [
+          80,
+          89,
+          "مسنتان"
+        ],
+        [
+          90,
+          99,
+          "ثلاث أتبعة"
+        ],
+        [
+          100,
+          109,
+          "مسنة + تبيعان"
+        ],
+        [
+          110,
+          119,
+          "مسنتان + تبيع"
+        ],
+        [
+          120,
+          129,
+          "ثلاث مسنات أو أربعة أتبعة"
+        ]
+      ],
+      "beyond": "في كل ثلاثين تبيع أو تبيعة، وفي كل أربعين مسنة"
+    },
+    "sheep_goats": {
+      "page": 4,
+      "brackets": [
+        [
+          1,
+          39,
+          "لا شيء فيها"
+        ],
+        [
+          40,
+          120,
+          "شاة واحدة"
+        ],
+        [
+          121,
+          200,
+          "شاتان"
+        ],
+        [
+          201,
+          399,
+          "ثلاث شياه"
+        ],
+        [
+          400,
+          499,
+          "أربع شياه"
+        ],
+        [
+          500,
+          599,
+          "خمس شياه"
+        ]
+      ],
+      "beyond": "في كل مائة شاة واحدة"
+    },
+    "conditions": [
+      "بلوغ النصاب",
+      "حولان الحول (وحول النتاج حول أصله)",
+      "السوم أكثر الحول"
+    ],
+    "quality": "أنثى صحيحة غير معيبة؛ لا يؤخذ ذكر إلا برضا صاحبه"
+  },
+  "poverty_threshold": {
+    "article": 14,
+    "page": 9,
+    "per_person_monthly_below": 300
+  },
+  "aid_ceilings": [
+    {
+      "id": "poor_individual_share",
+      "label_ar": "حصة الفرد في الأسرة (فقراء ومساكين)",
+      "article": 16,
+      "page": 10,
+      "min": 150,
+      "max": 300,
+      "period": "monthly",
+      "approved_by_ar": "مدير المكتب",
+      "record": "lzf_poor_amounts"
+    },
+    {
+      "id": "poor_annual",
+      "label_ar": "كفاية سنة للفقراء والمساكين",
+      "article": 16,
+      "page": 10,
+      "max": 18000,
+      "period": "annual",
+      "approved_by_ar": "مدير المكتب",
+      "record": "lzf_poor_amounts"
+    },
+    {
+      "id": "patient_treatment",
+      "label_ar": "علاج المريض العاجز",
+      "article": 17,
+      "page": 11,
+      "max": 40000,
+      "period": "per_case",
+      "paid_to_ar": "المصحات والمستشفيات والصيدليات (للمريض فقط عند العلاج بالخارج)",
+      "record": "lzf_medical_patient"
+    },
+    {
+      "id": "marriage",
+      "label_ar": "العاجز عن مصاريف الزواج",
+      "article": 17,
+      "page": 12,
+      "max": 20000,
+      "period": "per_case",
+      "record": "lzf_marriage"
+    },
+    {
+      "id": "housing_rent_annual",
+      "label_ar": "إيجار سنوي للأسر العاجزة عن السكن",
+      "article": 17,
+      "page": 12,
+      "max": 18000,
+      "period": "annual",
+      "paid_to_ar": "صاحب العقار",
+      "record": "lzf_housing_rent"
+    },
+    {
+      "id": "housing_build_buy",
+      "label_ar": "بناء أو شراء أو إعادة إعمار مسكن",
+      "article": 17,
+      "page": 13,
+      "max": 140000,
+      "period": "per_case",
+      "installments": 4,
+      "max_installment_pct": 25,
+      "approved_by_ar": "مكتب المستشارين",
+      "record": "lzf_housing_build_buy"
+    },
+    {
+      "id": "craft_tools",
+      "label_ar": "آلة حرفة للفقير",
+      "article": 17,
+      "page": 13,
+      "max": 25000,
+      "period": "per_case",
+      "paid_to_ar": "لجنة شراء (عيني)",
+      "record": "lzf_craft_tools"
+    },
+    {
+      "id": "emergency",
+      "label_ar": "إعانة طارئة",
+      "article": 17,
+      "page": 14,
+      "max": 1000,
+      "period": "one_time",
+      "record": "lzf_emergency_aid"
+    },
+    {
+      "id": "emergency_rent",
+      "label_ar": "إعانة إيجار مسكن (طارئة)",
+      "article": 17,
+      "page": 14,
+      "max": 1500,
+      "period": "one_time",
+      "paid_to_ar": "صاحب العقار",
+      "record": "lzf_emergency_aid"
+    },
+    {
+      "id": "emergency_chronic_illness",
+      "label_ar": "إعانة علاج الأمراض العارضة والمزمنة",
+      "article": 17,
+      "page": 14,
+      "max": 1500,
+      "period": "one_time",
+      "paid_to_ar": "الصيدليات والمصحات",
+      "record": "lzf_emergency_aid"
+    },
+    {
+      "id": "emergency_treatment_lump",
+      "label_ar": "إعانة علاج مقطوعة (طارئة)",
+      "article": 17,
+      "page": 15,
+      "max": 3000,
+      "period": "one_time",
+      "paid_to_ar": "المصحات والمستشفيات والصيدليات",
+      "record": "lzf_emergency_aid"
+    },
+    {
+      "id": "amilin_collectors",
+      "label_ar": "العاملون عليها (جباة معتمدون غير موظفين)",
+      "article": 18,
+      "page": 15,
+      "max": 24000,
+      "period": "annual",
+      "approved_by_ar": "المدير التنفيذي",
+      "record": "lzf_amilin"
+    },
+    {
+      "id": "muallafa",
+      "label_ar": "المؤلفة قلوبهم",
+      "article": 19,
+      "page": 16,
+      "max": 12000,
+      "period": "per_case",
+      "approved_by_ar": "مجلس الإدارة (قرار المجلس الرئاسي 249/2020)",
+      "record": "lzf_muallafa"
+    },
+    {
+      "id": "riqab",
+      "label_ar": "في الرقاب (فك الأسرى)",
+      "article": 20,
+      "page": 17,
+      "max": 20000,
+      "period": "per_case",
+      "approved_by_ar": "مكتب المستشارين",
+      "record": "lzf_riqab"
+    },
+    {
+      "id": "gharimin",
+      "label_ar": "الغارمون (سداد دين)",
+      "article": 21,
+      "page": 18,
+      "max": 30000,
+      "period": "per_case",
+      "paid_to_ar": "الدائن",
+      "record": "lzf_gharimin_debtors"
+    },
+    {
+      "id": "fi_sabilillah",
+      "label_ar": "في سبيل الله",
+      "article": 22,
+      "page": 19,
+      "max": null,
+      "period": null,
+      "approved_by_ar": "مجلس الإدارة (قرار المجلس الرئاسي 249/2020)",
+      "note_ar": "لم تحدد اللائحة سقفًا ماليًا",
+      "record": "lzf_fi_sabilillah"
+    },
+    {
+      "id": "ibn_sabil",
+      "label_ar": "ابن السبيل",
+      "article": 23,
+      "page": 19,
+      "max": 10000,
+      "period": "per_case",
+      "record": "lzf_ibn_sabil"
+    }
+  ]
+}

@@ -19,11 +19,12 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 KB_ROOT = Path(__file__).resolve().parent.parent / "zakat_knowledge_base"
 
-CloneId = Literal["albani", "ibn_uthaymeen", "ibn_baz", "maliki", "comparative"]
+CloneId = Literal["albani", "ibn_uthaymeen", "ibn_baz", "maliki", "libya_zakat_fund", "comparative"]
 VerificationStatus = Literal["verified", "partially_verified", "unverified"]
 SourceType = Literal[
     "book", "verified_book", "official_fatwa", "recorded_fatwa", "audio_transcript",
     "hadith_grading", "classical_text", "commentary", "contemporary_fatwa", "secondary",
+    "official_regulation",
 ]
 
 # Lower is more authoritative (spec section 19).
@@ -34,6 +35,7 @@ SOURCE_PRIORITY: dict[str, int] = {
     "commentary": 2,
     "hadith_grading": 2,
     "official_fatwa": 3,
+    "official_regulation": 3,
     "recorded_fatwa": 4,
     "audio_transcript": 4,
     "contemporary_fatwa": 5,
@@ -64,7 +66,7 @@ class Source(BaseModel):
             f"المؤلف: {self.author}",
             f"الباب: {self.chapter or unverified}",
             f"الجزء: {self.volume or unverified}",
-            f"الصفحة: {self.page or ('رقم الصفحة غير متحقق منه' if self.source_type in ('book','classical_text','verified_book','commentary') else 'لا ينطبق (مصدر إلكتروني)')}",
+            f"الصفحة: {self.page or ('رقم الصفحة غير متحقق منه' if self.source_type in ('book','classical_text','verified_book','commentary','official_regulation') else 'لا ينطبق (مصدر إلكتروني)')}",
             f"الرابط: {self.url or unverified}",
         ]
 
