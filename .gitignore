@@ -13,3 +13,4 @@ data/
 # on-prem deployment: local settings and backups
 deploy/.env
 deploy/backups/
+config/

@@ -7,7 +7,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY chatbot ./chatbot
 COPY zakat_knowledge_base ./zakat_knowledge_base
+COPY لائحة_الزكاة ./لائحة_الزكاة
 
 RUN mkdir -p /data
 VOLUME /data

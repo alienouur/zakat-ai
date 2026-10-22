@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>مساعد صندوق الزكاة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --teal: #1a4a4a; --teal2: #2d6a6a; --gold: #d4af37; --bg: #f3f6f5; --card: #fff; --ink: #1d2b2b; --muted: #627675; --line: #dde5e3; --user: #e9f2f0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: "Cairo", system-ui, sans-serif; background: var(--bg); color: var(--ink); display: flex; flex-direction: column; }
+  header { background: linear-gradient(135deg, var(--teal), var(--teal2)); color: #fff; padding: .8rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  .wrap { max-width: 860px; margin: 0 auto; width: 100%; }
+  header .row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+  header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+  header h1 span { color: var(--gold); }
+  header .note { margin: .25rem 0 0; font-size: .78rem; opacity: .9; line-height: 1.5; }
+  button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.55); border-radius: 10px; padding: .4rem .8rem; font: inherit; font-size: .85rem; cursor: pointer; white-space: nowrap; }
+  button.ghost:hover { background: rgba(255,255,255,.12); }
+  main { flex: 1; overflow-y: auto; padding: 1rem .8rem 1.2rem; }
+  .msgs { display: flex; flex-direction: column; gap: .7rem; }
+  .bubble { max-width: 86%; padding: .7rem .95rem; border-radius: 16px; line-height: 1.75; word-wrap: break-word; font-size: .97rem; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .user { align-self: flex-start; white-space: pre-wrap; background: var(--teal); color: #fff; border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-end; background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .bot.err { border-color: #e4b8b8; background: #fff6f6; }
+  .cites { align-self: flex-end; max-width: 86%; display: flex; flex-wrap: wrap; gap: .35rem; margin-top: -.3rem; }
+  .cite { font-size: .74rem; color: var(--teal); background: #eaf1ef; border: 1px solid #cfe0db; border-radius: 999px; padding: .1rem .6rem; }
+  .ref-card { align-self: flex-end; max-width: 86%; background: #fffaf0; border: 1px solid var(--gold); border-right: 5px solid var(--gold); border-radius: 12px; padding: .7rem .95rem; }
+  .ref-card b { display: block; font-size: 1.15rem; letter-spacing: .5px; color: var(--teal); direction: ltr; text-align: right; }
+  .consult-btn { align-self: flex-end; background: #fff; border: 1px dashed var(--gold); color: var(--teal); border-radius: 12px; padding: .5rem .9rem; font: inherit; font-size: .88rem; cursor: pointer; }
+  .consult-btn:hover { background: #fffaf0; }
+  .consult { align-self: flex-end; max-width: 86%; width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: .9rem 1rem; display: grid; gap: .5rem; }
+  .consult h3 { margin: 0; font-size: 1rem; color: var(--teal); }
+  .consult p { margin: 0; font-size: .82rem; color: var(--muted); }
+  .consult input, .consult textarea { width: 100%; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: .95rem; }
+  .consult .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .consult .acts { display: flex; gap: .5rem; justify-content: flex-start; }
+  .consult .acts button { font: inherit; border-radius: 10px; padding: .5rem 1rem; cursor: pointer; border: 1px solid var(--line); background: #fff; }
+  .consult .acts .go { background: var(--gold); border-color: var(--gold); font-weight: 700; }
+  .consult .err { color: #a33; font-size: .82rem; }
+  .consult .drafting { color: var(--muted); font-size: .85rem; }
+  .consult .tips { background: #f6f9f8; border: 1px dashed var(--line); border-radius: 10px; padding: .5rem .8rem; font-size: .83rem; }
+  .consult .tips b { display: block; color: var(--teal); margin-bottom: .2rem; } .consult .tips ul { margin: 0 1rem 0 0; padding: 0; }
+  .consult label { font-size: .78rem; color: var(--muted); }
+  .footlinks { text-align: center; margin: .35rem 0 0; font-size: .78rem; } .footlinks button { background: none; border: 0; color: var(--teal); text-decoration: underline; font: inherit; font-size: .78rem; cursor: pointer; }
+  @media (max-width: 600px) { .consult .row2 { grid-template-columns: 1fr; } }
+  .typing { align-self: flex-end; color: var(--muted); font-size: .85rem; padding: .3rem .6rem; }
+  .typing i { display: inline-block; width: 6px; height: 6px; margin: 0 1px; border-radius: 50%; background: var(--muted); animation: b 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s } .typing i:nth-child(3) { animation-delay: .4s }
+  @keyframes b { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: 1rem 0; }
+  .chip { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: .45rem .9rem; font: inherit; font-size: .9rem; cursor: pointer; color: var(--teal); }
+  .chip:hover { border-color: var(--gold); }
+  .chips[hidden] { display: none; }
+  .bubble ul { margin: .3rem 1.2rem .3rem 0; padding: 0; } .bubble li { margin: .15rem 0; } .bubble b { color: var(--teal); } .bubble h4 { margin: .5rem 0 .2rem; font-size: 1rem; color: var(--teal); }
+  footer { background: var(--card); border-top: 1px solid var(--line); padding: .6rem .8rem calc(.6rem + env(safe-area-inset-bottom)); }
+  form { display: flex; gap: .5rem; align-items: flex-end; }
+  textarea { flex: 1; resize: none; min-height: 46px; max-height: 160px; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 1rem; background: #fff; }
+  textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
+  #send { background: var(--gold); color: #1d2b2b; border: 0; border-radius: 12px; padding: 0 1.1rem; height: 46px; font: inherit; font-weight: 700; cursor: pointer; }
+  #send:disabled { opacity: .55; cursor: default; }
+  .hint { text-align: center; color: var(--muted); font-size: .72rem; margin: .4rem 0 0; }
+  @media (max-width: 600px) { .bubble, .cites, .ref-card { max-width: 94%; } header h1 { font-size: 1.05rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row">
+      <h1><span>◆</span> مساعد صندوق الزكاة</h1>
+      <button class="ghost" id="new-chat" type="button">محادثة جديدة</button>
+    </div>
+    <p class="note">المعلومات مأخوذة من لائحة صندوق الزكاة 2026 وليست فتوى شخصية؛ القرار النهائي لمكتب الصندوق.</p>
+  </div>
+</header>
+<main><div class="wrap">
+  <div class="msgs" id="msgs"></div>
+  <div class="chips" id="chips">
+    <button class="chip" type="button">كم زكاة مالي؟</button>
+    <button class="chip" type="button">ما المستندات المطلوبة لطلب إعانة؟</button>
+    <button class="chip" type="button">كيف أقدم شكوى؟</button>
+    <button class="chip" type="button">زكاة الفطر</button>
+  </div>
+</div></main>
+<footer><div class="wrap">
+  <form id="f">
+    <textarea id="inp" rows="1" placeholder="اكتب سؤالك عن الزكاة أو إجراءات الصندوق…" maxlength="1999" required></textarea>
+    <button id="send" type="submit">إرسال</button>
+  </form>
+  <p class="hint">لا تُرسل بيانات مصرفية أو كلمات مرور. الحد 2000 حرف للرسالة.</p>
+  <p class="footlinks"><button type="button" id="consult-link">لم تجد الجواب؟ أرسل طلب فتوى إلى مكتب المستشارين الشرعيين بالصندوق</button></p>
+</div></footer>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const msgs = $("#msgs"), inp = $("#inp"), send = $("#send"), chips = $("#chips");
+  const KEY = "zakat_assistant_session";
+  let sessionId = null, busy = false;
+  const store = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+  const load = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  sessionId = load(KEY);
+
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+  // renders the model's light markdown (bold, lists, headings) as DOM nodes — text only, no innerHTML
+  function inline(target, text) {
+    const parts = text.split(/\*\*(.+?)\*\*/g);
+    parts.forEach((p, i) => { if (!p) return; if (i % 2) { const b = el("b", null, p); target.append(b); } else target.append(document.createTextNode(p.replace(/`([^`]+)`/g, "$1").replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,،;:)]|$)/g, "$1$2"))); });
+  }
+  function richBubble(cls, text) {
+    const box = el("div", cls);
+    let list = null;
+    for (const raw of String(text).replace(/\r/g, "").split("\n")) {
+      const line = raw.replace(/\s+$/, "");
+      const li = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+      if (li) { if (!list) { list = el("ul"); box.append(list); } const item = el("li"); inline(item, li[1]); list.append(item); continue; }
+      list = null;
+      if (!line.trim() || /^\s*-{3,}\s*$/.test(line)) { if (box.lastChild && box.lastChild.tagName !== "BR" && line.trim() === "") box.append(el("br")); continue; }
+      const h = line.match(/^#{1,6}\s+(.*)$/);
+      if (h) { const hd = el("h4"); inline(hd, h[1]); box.append(hd); continue; }
+      const pr = el("div"); inline(pr, line); box.append(pr);
+    }
+    return box;
+  }
+  const scroll = () => { const m = document.querySelector("main"); m.scrollTop = m.scrollHeight; };
+  const add = (node) => { msgs.append(node); scroll(); return node; };
+
+  function greet() {
+    msgs.innerHTML = "";
+    chips.hidden = false;
+    add(richBubble("bubble bot", "أهلًا بك. أجيبك عن أحكام الزكاة وإجراءات صندوق الزكاة بحسب لائحة 2026، وأستطيع إرسال شكواك أو استفسارك الخاص إلى الصندوق إذا رغبت."));
+  }
+
+  async function ask(text) {
+    if (busy || !text.trim()) return;
+    busy = true; send.disabled = true; chips.hidden = true;
+    add(el("div", "bubble user", text)); lastQuestion = text;
+    inp.value = ""; inp.style.height = "";
+    const typing = add(el("div", "typing")); typing.append(el("i"), el("i"), el("i"));
+    try {
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message: text }) });
+      const data = await r.json().catch(() => ({}));
+      typing.remove();
+      if (!r.ok) { add(el("div", "bubble bot err", data.detail || "تعذّر إرسال الرسالة. حاول مرة أخرى.")); return; }
+      if (data.session_id && data.session_id !== sessionId) { sessionId = data.session_id; store(KEY, sessionId); }
+      add(richBubble("bubble bot", data.reply || ""));
+      if (Array.isArray(data.citations) && data.citations.length) {
+        const c = el("div", "cites");
+        for (const x of data.citations) c.append(el("span", "cite", (x.article || "") + (x.page ? " — ص " + x.page : "")));
+        add(c);
+      }
+      if (data.escalation && data.escalation.reference) {
+        const card = el("div", "ref-card");
+        card.append(el("div", null, "تم إرسال طلبك إلى صندوق الزكاة. الرقم المرجعي:"));
+        card.append(el("b", null, data.escalation.reference));
+        card.append(el("div", null, "احتفظ به للمتابعة؛ سيتواصل معك الصندوق عبر الوسيلة التي ذكرتها."));
+        add(card);
+      }
+      if (data.no_answer && !(data.escalation && data.escalation.reference)) {
+        const b = el("button", "consult-btn", "لم أجد جوابًا كافيًا في اللائحة — أرسل طلب فتوى إلى مكتب المستشارين الشرعيين"); b.type = "button";
+        b.addEventListener("click", () => consultForm(text)); add(b);
+      }
+      if (data.limit_reached) chips.hidden = true;
+    } catch (e) {
+      typing.remove();
+      add(el("div", "bubble bot err", "تعذّر الاتصال بالخادم. تحقق من الشبكة وحاول مرة أخرى."));
+    } finally { busy = false; send.disabled = false; inp.focus(); }
+  }
+
+  let lastQuestion = "";
+  async function consultForm(prefill) {
+    const old = msgs.querySelector(".consult"); if (old) old.remove();
+    const box = el("div", "consult");
+    box.append(el("h3", null, "طلب فتوى من مكتب المستشارين الشرعيين"));
+    box.append(el("p", null, "جهّزنا لك صياغة السؤال من محادثتك؛ راجعها وعدّل ما تريد، ثم أضف اسمك ووسيلة الرد. لا تكتب بيانات مصرفية."));
+    const subj = el("input"); subj.placeholder = "عنوان الطلب"; subj.maxLength = 90;
+    const drafting = el("div", "drafting", "يُجهَّز سؤالك من المحادثة…");
+    const tips = el("div", "tips"); tips.hidden = true;
+    let relatedArticles = [];
+    const name = el("input"); name.placeholder = "الاسم"; name.required = true; name.maxLength = 120;
+    const row = el("div", "row2");
+    const phone = el("input"); phone.placeholder = "رقم الهاتف"; phone.type = "tel"; phone.maxLength = 40;
+    const email = el("input"); email.placeholder = "البريد الإلكتروني (اختياري إن ذكرت الهاتف)"; email.type = "email"; email.maxLength = 120;
+    row.append(phone, email);
+    const city = el("input"); city.placeholder = "المدينة أو مكتب الصندوق (اختياري)"; city.maxLength = 120;
+    const q = el("textarea"); q.rows = 6; q.placeholder = "سؤالك بالتفصيل"; q.value = prefill || ""; q.maxLength = 4000;
+    const err = el("div", "err");
+    const acts = el("div", "acts");
+    const go = el("button", "go", "إرسال طلب الفتوى"); go.type = "button";
+    const cancel = el("button", null, "إلغاء"); cancel.type = "button";
+    acts.append(go, cancel);
+    const lq = el("label", null, "نص السؤال كما سيصل إلى المفتي:");
+    box.append(subj, drafting, lq, q, tips, el("label", null, "بياناتك للرد عليك:"), name, row, city, err, acts);
+    cancel.addEventListener("click", () => box.remove());
+    go.addEventListener("click", async () => {
+      err.textContent = "";
+      if (name.value.trim().length < 2) { err.textContent = "اكتب اسمك."; return; }
+      if (!phone.value.trim() && !email.value.trim()) { err.textContent = "اكتب رقم هاتف أو بريدًا إلكترونيًا للرد عليك."; return; }
+      if (q.value.trim().length < 10) { err.textContent = "اكتب سؤالك بتفصيل أكثر (10 أحرف على الأقل)."; return; }
+      go.disabled = true;
+      try {
+        const r = await fetch("/api/consult", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, name: name.value.trim(), contact_phone: phone.value.trim(), contact_email: email.value.trim(), city_or_office: city.value.trim(), question: q.value.trim(), subject: subj.value.trim(), related_articles: relatedArticles }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = (d && d.detail) ? String(d.detail) : "تعذّر الإرسال. حاول مرة أخرى."; go.disabled = false; return; }
+        box.remove();
+        const card = el("div", "ref-card");
+        card.append(el("div", null, "أُرسل طلب الفتوى إلى مكتب المستشارين الشرعيين بصندوق الزكاة. الرقم المرجعي:"));
+        card.append(el("b", null, d.reference));
+        card.append(el("div", null, "سيتواصل معك الصندوق عبر الوسيلة التي ذكرتها."));
+        add(card);
+      } catch (e) { err.textContent = "تعذّر الاتصال بالخادم."; go.disabled = false; }
+    });
+    add(box);
+    try {
+      const r = await fetch("/api/consult/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, question: prefill || "" }) });
+      const d = await r.json();
+      if (d.subject) subj.value = d.subject;
+      if (d.question) q.value = d.question;
+      relatedArticles = Array.isArray(d.related_articles) ? d.related_articles : [];
+      if (Array.isArray(d.missing_info) && d.missing_info.length) {
+        tips.hidden = false; tips.append(el("b", null, "قد يسأل المفتي عن هذه النقاط — أضفها إلى السؤال إن أمكن:"));
+        const ul = el("ul"); for (const t of d.missing_info) ul.append(el("li", null, t)); tips.append(ul);
+      }
+      drafting.textContent = d.drafted ? "تمت الصياغة تلقائيًا من محادثتك — راجعها وعدّلها إن لزم." : "راجع سؤالك وأكمل التفاصيل.";
+    } catch (e) { drafting.textContent = "راجع سؤالك وأكمل التفاصيل."; }
+    name.focus(); scroll();
+  }
+  $("#consult-link").addEventListener("click", () => consultForm(lastQuestion));
+
+  $("#f").addEventListener("submit", (e) => { e.preventDefault(); ask(inp.value); });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(inp.value); } });
+  inp.addEventListener("input", () => { inp.style.height = ""; inp.style.height = Math.min(inp.scrollHeight, 160) + "px"; });
+  chips.addEventListener("click", (e) => { const b = e.target.closest(".chip"); if (b) ask(b.textContent); });
+  $("#new-chat").addEventListener("click", async () => {
+    sessionId = null; store(KEY, null);
+    try { const r = await fetch("/api/session/new", { method: "POST" }); const d = await r.json(); if (d.session_id) { sessionId = d.session_id; store(KEY, sessionId); } } catch (e) {}
+    greet();
+  });
+  greet();
+})();
+</script>
+</body>
+</html>
