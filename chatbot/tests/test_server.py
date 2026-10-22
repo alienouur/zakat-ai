@@ -59,7 +59,7 @@ def test_escalation_reference_returned():
 
 def test_limits_and_validation():
     c, _ = client()
-    assert c.post("/api/chat", json={"message": "x" * 2000}).status_code == 413
+    assert c.post("/api/chat", json={"message": "x" * 2001}).status_code == 413 and c.post("/api/chat", json={"message": "x" * 2000}).status_code == 200
     assert c.post("/api/chat", json={"message": "   "}).status_code == 400
     sid = c.post("/api/session/new").json()["session_id"]
     server.sessions.append(sid, [{"role": "user", "parts": [{"text": "m"}]}] * 40)
@@ -73,6 +73,8 @@ def test_no_answer_flag_and_direct_consultation():
     c, _ = client()
     ok = c.post("/api/chat", json={"message": "كم نصاب الغنم"}).json()
     assert ok["no_answer"] is False
+    junk = c.post("/api/chat", json={"message": "xyzzy <img src=x onerror=alert(1)>"}).json()  # empty retrieval, plain reply
+    assert junk["no_answer"] is False
     r = c.post("/api/chat", json={"session_id": ok["session_id"], "message": "هل في الحلي زكاة"}).json()
     assert r["no_answer"] is True
     bad = c.post("/api/consult", json={"session_id": r["session_id"], "name": "سالم", "question": "هل في حلي زوجتي زكاة وهو للاستعمال؟"})

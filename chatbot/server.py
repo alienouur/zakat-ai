@@ -15,7 +15,7 @@ from app.store import RateLimiter
 
 from .config import settings
 from .escalation import EscalationService
-from .knowledge import EMPTY_BLOCK, KnowledgeIndex, citations_for
+from .knowledge import KnowledgeIndex, citations_for
 from .llm import GeminiChat
 from .prompt import load_system_prompt, load_tool_definition, to_gemini_function_declaration
 from .sessions import SessionStore
@@ -74,7 +74,9 @@ def _last_model_text(messages: list[dict]) -> str:
 
 
 def _no_answer(reply: str, knowledge_block: str) -> bool:
-    return knowledge_block == EMPTY_BLOCK or bool(_NO_ANSWER.search(reply))
+    # only when the reply itself says the regulation does not cover it (an empty retrieval alone also
+    # happens for off-topic or junk input, which must not be offered as a fatwa request)
+    return bool(_NO_ANSWER.search(reply))
 
 
 def _ip(request: Request) -> str:
@@ -87,7 +89,7 @@ def chat(body: ChatIn, request: Request) -> dict:
     text = body.message.strip()
     if not text:
         raise HTTPException(400, "الرسالة فارغة")
-    if len(text) >= settings.max_message_chars:
+    if len(text) > settings.max_message_chars:
         raise HTTPException(413, f"الرسالة طويلة جدًا (الحد {settings.max_message_chars} حرفًا)")
     ip = _ip(request)
     if not limiter.allow(ip):

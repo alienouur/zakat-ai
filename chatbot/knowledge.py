@@ -12,6 +12,7 @@ from app.topics import detect_topics
 CLONE = "libya_zakat_fund"
 EMPTY_BLOCK = "<knowledge>لا توجد مقاطع مطابقة</knowledge>"
 _ARTICLE_NUM = re.compile(r"المادة\s*\(?\s*(\d+)")
+_ARTICLE_PAGE = re.compile(r"المادة\s*\(?\s*(\d+)[^()\n]{0,25}?ص\s*\.?\s*(\d+)")
 _FOLLOW_UP_STARTS = ("و", "وكم", "وما", "وهل", "وماذا", "طيب", "يعني", "كم", "هل", "ولو", "وإذا", "واذا")
 
 
@@ -42,7 +43,17 @@ def citations_for(hits: list[Hit], reply: str | None = None) -> list[dict]:
     if reply is not None:
         # only articles the reply actually cites; a reply with no article reference (greeting, confirmation) gets none
         cited = set(_ARTICLE_NUM.findall(reply))
-        picked = [c for c in seen if (m := _ARTICLE_NUM.search(c["article"])) and m.group(1) in cited]
+        pages: dict[str, set[str]] = {}
+        for art, pg in _ARTICLE_PAGE.findall(reply):
+            pages.setdefault(art, set()).add(pg)
+        picked = []
+        for c in seen:
+            m = _ARTICLE_NUM.search(c["article"])
+            if not m or m.group(1) not in cited:
+                continue
+            if pages.get(m.group(1)) and c["page"] not in pages[m.group(1)]:
+                continue  # the reply named specific pages of this article: drop the other pages
+            picked.append(c)
         return picked[:6]
     return seen
 

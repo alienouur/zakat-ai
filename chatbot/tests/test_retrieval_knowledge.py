@@ -44,3 +44,13 @@ def test_citations_filtered_by_reply(index):
     picked = citations_for(hits, f"بحسب (المادة {num}، ص {all_c[0]['page']}) ...")
     assert picked and all(f"({num})" in c["article"] for c in picked)
     assert citations_for(hits, "لا توجد إحالة") == []
+
+
+def test_citations_narrowed_to_cited_pages(index):
+    hits = index.search("كم نصاب الغنم")
+    all_c = citations_for(hits)
+    assert len({c["page"] for c in all_c}) > 1  # article 4 spans several pages in the hits
+    picked = citations_for(hits, "تجب شاة واحدة (المادة 4، ص 4).")
+    assert picked and all(c["page"] == "4" for c in picked)
+    broad = citations_for(hits, "انظر المادة 4 عمومًا")
+    assert len(broad) >= len(picked)
