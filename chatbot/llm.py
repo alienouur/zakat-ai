@@ -57,9 +57,11 @@ class GeminiError(Exception):
 
 
 def http_transport(cfg: Settings) -> Transport:
+    # httpx honours HTTPS_PROXY / HTTP_PROXY from the environment, which lets a server in a region
+    # where the Gemini API is unavailable route only these calls through a proxy abroad.
     def send(body: dict) -> dict:
         try:
-            r = httpx.post(GEMINI_URL.format(model=cfg.gemini_model), json=body,
+            r = httpx.post(GEMINI_URL.format(model=cfg.gemini_model), json=body, trust_env=True,
                            headers={"x-goog-api-key": cfg.gemini_api_key}, timeout=cfg.llm_timeout_seconds)
         except httpx.RequestError as e:
             raise GeminiError(None, type(e).__name__) from e
@@ -86,6 +88,19 @@ class GeminiChat:
             "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}},
             "generationConfig": {"temperature": 0.3, "maxOutputTokens": self.cfg.llm_max_output_tokens},
         }
+
+    def probe(self) -> dict:
+        """Tiny real call used by /api/health?llm=1 to show *why* Gemini fails (status + Google's message)."""
+        if self._uses_http and not self.cfg.gemini_api_key:
+            return {"ok": False, "status": None, "error": "GEMINI_API_KEY غير مضبوط"}
+        body = {"contents": [{"role": "user", "parts": [{"text": "قل: جاهز"}]}],
+                "generationConfig": {"maxOutputTokens": 8}}
+        try:
+            resp = self.transport(body)
+        except GeminiError as e:
+            return {"ok": False, "status": e.status, "error": str(e)[:300], "model": self.cfg.gemini_model}
+        text = self._text(resp.get("candidates", [{}])[0].get("content", {}).get("parts", [])) if resp.get("candidates") else ""
+        return {"ok": True, "status": 200, "model": self.cfg.gemini_model, "sample": text[:40]}
 
     def draft_fatwa_request(self, questions: list[str], last_reply: str) -> dict | None:
         """One tool-free JSON call that pre-writes the fatwa request from the conversation; None on any failure."""

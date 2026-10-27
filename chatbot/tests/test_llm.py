@@ -96,3 +96,9 @@ def test_draft_fatwa_request_parses_json_and_fails_soft():
     assert "tools" not in script.bodies[0] and script.bodies[0]["generationConfig"]["responseMimeType"] == "application/json"
     assert make(Script([text_resp("not json")])).draft_fatwa_request(["q"], "") is None
     assert make(Script([GeminiError(500, "x")])).draft_fatwa_request(["q"], "") is None
+
+
+def test_probe_reports_google_error_details():
+    assert make(Script([text_resp("جاهز")])).probe()["ok"] is True
+    bad = make(Script([GeminiError(400, '{"error": {"message": "User location is not supported for the API use."}}')])).probe()
+    assert bad["ok"] is False and bad["status"] == 400 and "location" in bad["error"]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -165,15 +166,19 @@ def new_session() -> dict:
 
 
 @app.get("/api/health")
-def health() -> dict:
-    return {
+def health(check: int = 0, llm: int = 0) -> dict:
+    out = {
         "status": "ok",
         "llm_enabled": settings.llm_enabled,
         "model": settings.gemini_model,
         "email_dry_run": settings.email_dry_run,
         "records": knowledge.kb.stats().get("libya_zakat_fund", {}).get("records", 0),
         "sessions": sessions.count(),
+        "proxy": bool(os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")),
     }
+    if check or llm:
+        out["llm_check"] = globals()["llm"].probe() if hasattr(globals()["llm"], "probe") else None
+    return out
 
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
