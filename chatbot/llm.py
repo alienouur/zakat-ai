@@ -95,24 +95,25 @@ class GeminiChat:
         return out
 
     def _call(self, body: dict) -> dict:
-        """Retries transient failures (503/429/5xx/connection) with 1s, 2s, 4s backoff, then tries the fallback model."""
+        """Fast failover: on a transient failure (503/429/5xx/connection/timeout) the *next* model is tried at once;
+        after every model failed once we wait (0.5s, 1s, ...) and run another round, up to LLM_RETRIES rounds."""
+        models = self._models()
+        rounds = max(1, self.cfg.llm_retries)
         last: GeminiError | None = None
-        for model in self._models():
-            for attempt in range(1, max(1, self.cfg.llm_retries) + 1):
+        for rnd in range(1, rounds + 1):
+            for idx, model in enumerate(models):
                 try:
                     return self.transport(body, model=model)
                 except GeminiError as e:
                     last = e
-                    transient = e.status is None or e.status in RETRYABLE_STATUSES
-                    if not transient:
+                    if not (e.status is None or e.status in RETRYABLE_STATUSES):
                         raise
-                    log.warning("gemini %s attempt %s/%s failed: %s", model, attempt, self.cfg.llm_retries,
+                    log.warning("gemini %s failed (round %s/%s): %s", model, rnd, rounds,
                                 f"status {e.status}" if e.status else f"connection ({e})")
-                    if attempt < self.cfg.llm_retries:
-                        self._sleep(self.cfg.llm_retry_base_seconds * (2 ** (attempt - 1)))
-            models = self._models()
-            if model != models[-1]:
-                log.warning("model %s unavailable, switching to fallback %s", model, models[models.index(model) + 1])
+                    if idx + 1 < len(models):
+                        log.warning("switching at once to %s", models[idx + 1])
+            if rnd < rounds:
+                self._sleep(self.cfg.llm_retry_base_seconds * (2 ** (rnd - 1)))
         assert last is not None
         raise last
 
