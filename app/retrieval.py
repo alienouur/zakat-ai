@@ -14,12 +14,28 @@ from .kb import SOURCE_PRIORITY, KnowledgeBase, Record
 from .normalize import tokenize
 from .topics import TOPIC_BY_ID
 
+GENERIC_TAGS = {"zakat", "khilaf", "ruling", "contemporary"}
+BROAD_TAGS = {"nisab", "hawl"}
+
+
+def specific_tags(topic_id: str) -> set[str]:
+    """Tags that identify a topic's records; broad tags (nisab/hawl) only count for the nisab/hawl topics."""
+    topic = TOPIC_BY_ID.get(topic_id)
+    if topic is None:
+        return set()
+    tags = set(topic.tags) - GENERIC_TAGS
+    if topic.id not in ("nisab", "hawl", "mustafad"):
+        tags -= BROAD_TAGS
+    tags.add(topic.id)
+    return tags
+
 
 @dataclass
 class Hit:
     record: Record
     score: float
     matched_topic: bool
+    lexical: float = 0.0
 
 
 class Retriever:
@@ -60,9 +76,11 @@ class Retriever:
                 vec_scores = None
 
         topic = TOPIC_BY_ID.get(topic_id) if topic_id else None
+        wanted_tags = specific_tags(topic_id) if topic_id else set()
         hits: list[Hit] = []
         for i, rec in enumerate(recs):
-            s = scores[i] / max_s
+            lexical = scores[i] / max_s
+            s = lexical
             if vec_scores is not None:
                 s = 0.5 * s + 0.5 * max(vec_scores[i], 0.0)
             matched = False
@@ -70,20 +88,21 @@ class Retriever:
                 if rec.subtopic == topic.id:
                     s += 1.0
                     matched = True
-                elif set(topic.tags) & set(rec.tags):
+                elif wanted_tags & set(rec.tags):
                     s += 0.35
+                    matched = True
             # authoritative sources rank slightly higher on ties (spec section 19)
             s += 0.02 * (7 - SOURCE_PRIORITY.get(rec.primary_source.source_type, 6))
             if rec.verification_status == "verified":
                 s += 0.05
             if s > 0.05:
-                hits.append(Hit(rec, s, matched))
+                hits.append(Hit(rec, s, matched, lexical))
         hits.sort(key=lambda h: -h.score)
         return hits[:k]
 
 
 def _cos(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a)) or 1.0
     nb = math.sqrt(sum(x * x for x in b)) or 1.0
     return dot / (na * nb)

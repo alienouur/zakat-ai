@@ -1,0 +1,54 @@
+# نسخة التشغيل الذاتي (On-Premises) لصندوق الزكاة — تُشغَّل بأمر واحد: docker compose up -d
+services:
+  zakat-ai:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: zakat-ai:latest
+    container_name: zakat-ai
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      ZAKAT_DATA_DIR: /data
+    volumes:
+      - zakat_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # الشات بوت العام للمواطنين (مساعد صندوق الزكاة) — نفس الصورة، خادم مستقل على منفذ آخر
+  zakat-chatbot:
+    image: zakat-ai:latest
+    container_name: zakat-chatbot
+    restart: unless-stopped
+    depends_on:
+      - zakat-ai
+    command: ["uvicorn", "chatbot.server:app", "--host", "0.0.0.0", "--port", "8090"]
+    ports:
+      - "${CHATBOT_HOST_PORT:-8090}:8090"
+    env_file:
+      - .env
+    environment:
+      CHATBOT_DATA_DIR: /data
+      CHATBOT_CONFIG_DIR: /config
+    volumes:
+      - chatbot_data:/data
+      - ../config:/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8090/api/health', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  zakat_data:
+    name: zakat_data
+  chatbot_data:
+    name: zakat_chatbot_data
