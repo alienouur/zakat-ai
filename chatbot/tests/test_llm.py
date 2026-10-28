@@ -21,16 +21,24 @@ class Script:
         self.responses = list(responses)
         self.bodies = []
 
-    def __call__(self, body):
+    def __call__(self, body, model=None):
         self.bodies.append(copy.deepcopy(body))
+        self.models = getattr(self, "models", []) + [model]
         r = self.responses.pop(0)
         if isinstance(r, Exception):
             raise r
         return r
 
 
-def make(script):
-    return GeminiChat("sys", DECL, Settings(), transport=script)
+def make(script, **env):
+    import os
+    for k, v in env.items():
+        os.environ[k] = v
+    chat = GeminiChat("sys", DECL, Settings(), transport=script)
+    for k in env:
+        os.environ.pop(k, None)
+    chat._sleep = lambda s: chat.__dict__.setdefault("slept", []).append(s)
+    return chat
 
 
 def test_tool_loop_terminates_and_results_in_one_message():
@@ -83,9 +91,29 @@ def test_max_tokens_logged_and_partial_shown(caplog):
 
 
 def test_api_errors_become_polite_arabic():
-    for err, needle in [(GeminiError(429, "quota"), "مشغولة"), (GeminiError(500, "x"), "خلل"), (GeminiError(None, "ConnectError"), "الاتصال")]:
-        res = make(Script([err])).chat([], "q", lambda n, a: {})
+    for err, needle in [(GeminiError(429, "quota"), "مزدحمة"), (GeminiError(503, "high demand"), "مزدحمة"), (GeminiError(500, "x"), "خلل"), (GeminiError(None, "ConnectError"), "الاتصال")]:
+        res = make(Script([err] * 3)).chat([], "q", lambda n, a: {})
         assert needle in res.reply and res.stop_reason == "ERROR" and "quota" not in res.reply
+    res = make(Script([GeminiError(400, "bad key")])).chat([], "q", lambda n, a: {})  # not transient: no retry
+    assert res.stop_reason == "ERROR" and "خلل" in res.reply
+
+
+def test_transient_errors_are_retried_with_backoff_then_fallback_model():
+    script = Script([GeminiError(503, "busy"), GeminiError(None, "ConnectError"), text_resp("نجح")])
+    chat = make(script)
+    res = chat.chat([], "q", lambda n, a: {})
+    assert res.reply == "نجح" and res.stop_reason == "STOP"
+    assert chat.slept == [1.0, 2.0] and len(script.bodies) == 3
+    # primary fails 3 times -> fallback model is tried
+    script = Script([GeminiError(503, "busy")] * 3 + [text_resp("من الاحتياطي")])
+    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-2.5-flash")
+    res = chat.chat([], "q", lambda n, a: {})
+    assert res.reply == "من الاحتياطي" and script.models == ["gemini-3.8-flash"] * 3 + ["gemini-2.5-flash"]
+    assert chat.slept == [1.0, 2.0]  # no sleep after the last primary attempt or before the fallback
+    # everything fails -> busy message, 6 attempts total
+    script = Script([GeminiError(503, "busy")] * 6)
+    res = make(script, GEMINI_FALLBACK_MODEL="gemini-2.5-flash").chat([], "q", lambda n, a: {})
+    assert "مزدحمة" in res.reply and len(script.bodies) == 6
 
 
 def test_draft_fatwa_request_parses_json_and_fails_soft():

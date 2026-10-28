@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -20,14 +21,15 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:ge
 MAX_TOOL_ROUNDS = 3
 
 MSG_REFUSAL = "عذرًا، لا أستطيع المساعدة في هذا الطلب. يمكنك سؤالي عن أحكام الزكاة أو إجراءات صندوق الزكاة، أو مراسلة الصندوق مباشرة."
-MSG_RATE_LIMIT = "الخدمة مشغولة حاليًا بعدد كبير من الطلبات. يرجى المحاولة بعد قليل."
-MSG_API_ERROR = "حدث خلل مؤقت في خدمة المساعد. يرجى المحاولة مرة أخرى بعد قليل."
-MSG_CONNECTION = "تعذّر الاتصال بخدمة المساعد حاليًا. يرجى المحاولة مرة أخرى بعد قليل."
+MSG_RATE_LIMIT = "الخدمة مزدحمة حاليًا، حاول بعد لحظات."
+MSG_API_ERROR = "حدث خلل مؤقت في خدمة المساعد، حاول بعد لحظات."
+MSG_CONNECTION = "تعذّر الاتصال بخدمة المساعد حاليًا، حاول بعد لحظات."
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 MSG_DISABLED = "خدمة المساعد الذكي غير مفعّلة على هذا الخادم (GEMINI_API_KEY غير مضبوط). يرجى إبلاغ فريق التقنية."
 MSG_EMPTY = "لم أتمكن من صياغة إجابة. هل يمكنك إعادة صياغة سؤالك؟"
 MSG_TOOL_LOOP = "لم أستطع إكمال الطلب تلقائيًا. يمكنك مراسلة الصندوق مباشرة على البريد المذكور."
 
-Transport = Callable[[dict], dict]
+Transport = Callable[..., dict]  # (body, model=None) -> response json
 ToolExecutor = Callable[[str, dict], dict]
 
 
@@ -59,10 +61,12 @@ class GeminiError(Exception):
 def http_transport(cfg: Settings) -> Transport:
     # httpx honours HTTPS_PROXY / HTTP_PROXY from the environment, which lets a server in a region
     # where the Gemini API is unavailable route only these calls through a proxy abroad.
-    def send(body: dict) -> dict:
+    timeout = httpx.Timeout(cfg.llm_timeout_seconds, connect=cfg.llm_connect_timeout_seconds)
+
+    def send(body: dict, model: str | None = None) -> dict:
         try:
-            r = httpx.post(GEMINI_URL.format(model=cfg.gemini_model), json=body, trust_env=True,
-                           headers={"x-goog-api-key": cfg.gemini_api_key}, timeout=cfg.llm_timeout_seconds)
+            r = httpx.post(GEMINI_URL.format(model=model or cfg.gemini_model), json=body, trust_env=True,
+                           headers={"x-goog-api-key": cfg.gemini_api_key}, timeout=timeout)
         except httpx.RequestError as e:
             raise GeminiError(None, type(e).__name__) from e
         if r.status_code >= 400:
@@ -79,6 +83,32 @@ class GeminiChat:
         self.function_declaration = function_declaration
         self._uses_http = transport is None
         self.transport = transport or http_transport(self.cfg)
+        self._sleep = time.sleep
+
+    def _models(self) -> list[str]:
+        fb = self.cfg.gemini_fallback_model
+        return [self.cfg.gemini_model] + ([fb] if fb and fb != self.cfg.gemini_model else [])
+
+    def _call(self, body: dict) -> dict:
+        """Retries transient failures (503/429/5xx/connection) with 1s, 2s, 4s backoff, then tries the fallback model."""
+        last: GeminiError | None = None
+        for model in self._models():
+            for attempt in range(1, max(1, self.cfg.llm_retries) + 1):
+                try:
+                    return self.transport(body, model=model)
+                except GeminiError as e:
+                    last = e
+                    transient = e.status is None or e.status in RETRYABLE_STATUSES
+                    if not transient:
+                        raise
+                    log.warning("gemini %s attempt %s/%s failed: %s", model, attempt, self.cfg.llm_retries,
+                                f"status {e.status}" if e.status else f"connection ({e})")
+                    if attempt < self.cfg.llm_retries:
+                        self._sleep(self.cfg.llm_retry_base_seconds * (2 ** (attempt - 1)))
+            if model != self._models()[-1]:
+                log.warning("switching to fallback model %s", self._models()[-1])
+        assert last is not None
+        raise last
 
     def _body(self, contents: list[dict]) -> dict:
         return {
@@ -96,9 +126,10 @@ class GeminiChat:
         body = {"contents": [{"role": "user", "parts": [{"text": "قل: جاهز"}]}],
                 "generationConfig": {"maxOutputTokens": 8}}
         try:
-            resp = self.transport(body)
+            resp = self._call(body)
         except GeminiError as e:
-            return {"ok": False, "status": e.status, "error": str(e)[:300], "model": self.cfg.gemini_model}
+            return {"ok": False, "status": e.status, "error": str(e)[:300], "model": self.cfg.gemini_model,
+                    "fallback_model": self.cfg.gemini_fallback_model or None, "retries": self.cfg.llm_retries}
         text = self._text(resp.get("candidates", [{}])[0].get("content", {}).get("parts", [])) if resp.get("candidates") else ""
         return {"ok": True, "status": 200, "model": self.cfg.gemini_model, "sample": text[:40]}
 
@@ -113,7 +144,7 @@ class GeminiChat:
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024, "responseMimeType": "application/json"},
         }
         try:
-            resp = self.transport(body)
+            resp = self._call(body)
             text = self._text(resp["candidates"][0]["content"]["parts"])
             data = json.loads(text[text.find("{"): text.rfind("}") + 1])
         except (GeminiError, KeyError, IndexError, ValueError, TypeError) as e:
@@ -141,10 +172,10 @@ class GeminiChat:
         last_text = ""
         for round_no in range(1, MAX_TOOL_ROUNDS + 2):
             try:
-                resp = self.transport(self._body(history + new))
+                resp = self._call(self._body(history + new))
             except GeminiError as e:
-                if e.status == 429:
-                    return ChatResult(MSG_RATE_LIMIT, new, escalation, "ERROR", f"rate_limit:{e}")
+                if e.status in (429, 503):
+                    return ChatResult(MSG_RATE_LIMIT, new, escalation, "ERROR", f"busy:{e.status}")
                 if e.status is not None:
                     log.warning("gemini status %s: %s", e.status, e)
                     return ChatResult(MSG_API_ERROR, new, escalation, "ERROR", f"status:{e.status}")

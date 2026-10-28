@@ -46,6 +46,7 @@
   .consult label { font-size: .78rem; color: var(--muted); }
   .footlinks { text-align: center; margin: .35rem 0 0; font-size: .78rem; } .footlinks button { background: none; border: 0; color: var(--teal); text-decoration: underline; font: inherit; font-size: .78rem; cursor: pointer; }
   @media (max-width: 600px) { .consult .row2 { grid-template-columns: 1fr; } }
+  .retry-btn { align-self: flex-end; background: var(--gold); border: 0; color: #1d2b2b; border-radius: 10px; padding: .45rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
   .typing { align-self: flex-end; color: var(--muted); font-size: .85rem; padding: .3rem .6rem; }
   .typing i { display: inline-block; width: 6px; height: 6px; margin: 0 1px; border-radius: 50%; background: var(--muted); animation: b 1.2s infinite; }
   .typing i:nth-child(2) { animation-delay: .2s } .typing i:nth-child(3) { animation-delay: .4s }
@@ -140,13 +141,14 @@
     inp.value = ""; inp.style.height = "";
     const typing = add(el("div", "typing")); typing.append(el("i"), el("i"), el("i"));
     try {
-      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+      const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, message: text }) });
       const data = await r.json().catch(() => ({}));
       typing.remove();
-      if (!r.ok) { add(el("div", "bubble bot err", data.detail || "تعذّر إرسال الرسالة. حاول مرة أخرى.")); return; }
+      if (!r.ok) { add(el("div", "bubble bot err", data.detail || "تعذّر إرسال الرسالة. حاول مرة أخرى.")); if (r.status >= 500 || r.status === 429) retryButton(text); return; }
       if (data.session_id && data.session_id !== sessionId) { sessionId = data.session_id; store(KEY, sessionId); }
-      add(richBubble("bubble bot", data.reply || ""));
+      add(richBubble("bubble bot" + (data.retryable ? " err" : ""), data.reply || ""));
+      if (data.retryable) { retryButton(text); return; }
       if (Array.isArray(data.citations) && data.citations.length) {
         const c = el("div", "cites");
         for (const x of data.citations) c.append(el("span", "cite", (x.article || "") + (x.page ? " — ص " + x.page : "")));
@@ -166,11 +168,35 @@
       if (data.limit_reached) chips.hidden = true;
     } catch (e) {
       typing.remove();
-      add(el("div", "bubble bot err", "تعذّر الاتصال بالخادم. تحقق من الشبكة وحاول مرة أخرى."));
+      add(el("div", "bubble bot err", "تعذّر الاتصال بالخادم. تحقق من الشبكة وحاول مرة أخرى.")); retryButton(text);
     } finally { busy = false; send.disabled = false; inp.focus(); }
   }
 
   let lastQuestion = "";
+  function retryButton(text) {
+    const b = el("button", "retry-btn", "إعادة المحاولة"); b.type = "button";
+    b.addEventListener("click", () => { b.remove(); retrySend(text); });
+    add(b);
+  }
+  async function retrySend(text) {
+    // same as ask() but without echoing the user's bubble again
+    if (busy) return;
+    busy = true; send.disabled = true;
+    const typing = add(el("div", "typing")); typing.append(el("i"), el("i"), el("i"));
+    try {
+      const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, message: text }) });
+      const data = await r.json().catch(() => ({}));
+      typing.remove();
+      if (!r.ok) { add(el("div", "bubble bot err", data.detail || "تعذّر إرسال الرسالة.")); retryButton(text); return; }
+      if (data.session_id && data.session_id !== sessionId) { sessionId = data.session_id; store(KEY, sessionId); }
+      add(richBubble("bubble bot" + (data.retryable ? " err" : ""), data.reply || ""));
+      if (data.retryable) { retryButton(text); return; }
+      if (Array.isArray(data.citations) && data.citations.length) { const c = el("div", "cites"); for (const x of data.citations) c.append(el("span", "cite", (x.article || "") + (x.page ? " — ص " + x.page : ""))); add(c); }
+      if (data.escalation && data.escalation.reference) { const card = el("div", "ref-card"); card.append(el("div", null, "تم إرسال طلبك إلى صندوق الزكاة. الرقم المرجعي:")); card.append(el("b", null, data.escalation.reference)); add(card); }
+      if (data.no_answer && !(data.escalation && data.escalation.reference)) { const b = el("button", "consult-btn", "لم أجد جوابًا كافيًا في اللائحة — أرسل طلب فتوى إلى مكتب المستشارين الشرعيين"); b.type = "button"; b.addEventListener("click", () => consultForm(text)); add(b); }
+    } catch (e) { typing.remove(); add(el("div", "bubble bot err", "تعذّر الاتصال بالخادم.")); retryButton(text); }
+    finally { busy = false; send.disabled = false; }
+  }
   async function consultForm(prefill) {
     const old = msgs.querySelector(".consult"); if (old) old.remove();
     const box = el("div", "consult");
@@ -202,7 +228,7 @@
       if (q.value.trim().length < 10) { err.textContent = "اكتب سؤالك بتفصيل أكثر (10 أحرف على الأقل)."; return; }
       go.disabled = true;
       try {
-        const r = await fetch("/api/consult", { method: "POST", headers: { "Content-Type": "application/json" },
+        const r = await fetch("api/consult", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId, name: name.value.trim(), contact_phone: phone.value.trim(), contact_email: email.value.trim(), city_or_office: city.value.trim(), question: q.value.trim(), subject: subj.value.trim(), related_articles: relatedArticles }) });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) { err.textContent = (d && d.detail) ? String(d.detail) : "تعذّر الإرسال. حاول مرة أخرى."; go.disabled = false; return; }
@@ -216,7 +242,7 @@
     });
     add(box);
     try {
-      const r = await fetch("/api/consult/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, question: prefill || "" }) });
+      const r = await fetch("api/consult/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, question: prefill || "" }) });
       const d = await r.json();
       if (d.subject) subj.value = d.subject;
       if (d.question) q.value = d.question;
@@ -237,7 +263,7 @@
   chips.addEventListener("click", (e) => { const b = e.target.closest(".chip"); if (b) ask(b.textContent); });
   $("#new-chat").addEventListener("click", async () => {
     sessionId = null; store(KEY, null);
-    try { const r = await fetch("/api/session/new", { method: "POST" }); const d = await r.json(); if (d.session_id) { sessionId = d.session_id; store(KEY, sessionId); } } catch (e) {}
+    try { const r = await fetch("api/session/new", { method: "POST" }); const d = await r.json(); if (d.session_id) { sessionId = d.session_id; store(KEY, sessionId); } } catch (e) {}
     greet();
   });
   greet();

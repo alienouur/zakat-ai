@@ -16,6 +16,8 @@ class FakeLLM:
 
     def chat(self, history, user_text, execute_tool):
         self.calls.append((list(history), user_text))
+        if "فشل" in user_text:
+            return ChatResult("الخدمة مزدحمة حاليًا، حاول بعد لحظات.", [{"role": "user", "parts": [{"text": user_text}]}], None, "ERROR", "busy:503")
         if "اشتكي" in user_text:
             out = execute_tool("send_escalation_email", {"request_type": "complaint", "subject": "شكوى", "user_name": "أحمد",
                                                          "contact_phone": "0911111111", "details": "تفاصيل الشكوى هنا بما يكفي من الطول."})
@@ -92,3 +94,12 @@ def test_no_answer_flag_and_direct_consultation():
     eml = (server.settings.data_dir / "outbox" / f"{good['reference']}.eml").read_bytes().decode("utf-8", "replace")
     body = __import__("email").message_from_string(eml).get_payload(decode=True).decode("utf-8")
     assert "حلي زوجتي" in body and "آخر أسئلة المستخدم" in body and "كم نصاب الغنم" in body and "المادة 4" in body
+
+
+def test_failed_turn_is_retryable_and_not_persisted():
+    c, _ = client()
+    r = c.post("/api/chat", json={"message": "سؤال سيُفشل"}).json()
+    assert r["retryable"] is True and "مزدحمة" in r["reply"] and r["citations"] == []
+    assert server.sessions.get(r["session_id"])["messages"] == [] and server.sessions.get(r["session_id"])["questions"] == []
+    ok = c.post("/api/chat", json={"session_id": r["session_id"], "message": "كم نصاب الغنم"}).json()
+    assert ok["retryable"] is False and len(server.sessions.get(r["session_id"])["messages"]) == 2

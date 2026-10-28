@@ -103,9 +103,13 @@ def chat(body: ChatIn, request: Request) -> dict:
     kn = knowledge.build(text, session["questions"])
     result = llm.chat(session["messages"], f"{kn.block}\n\nسؤال المستخدم: {text}",
                       lambda name, args: escalations.send(args, session_id=sid, client_ip=ip))
-    sessions.append(sid, result.new_messages, question=text)
-    if result.error:
+    if result.stop_reason in ("ERROR", "DISABLED"):
+        # nothing is saved for a failed turn, so a retry does not leave a user message without a reply
         log.info("chat %s ended with %s (%s)", sid[:8], result.stop_reason, result.error)
+    else:
+        sessions.append(sid, result.new_messages, question=text)
+        if result.error:
+            log.info("chat %s ended with %s (%s)", sid[:8], result.stop_reason, result.error)
     return {
         "session_id": sid,
         "reply": result.reply,
@@ -113,6 +117,7 @@ def chat(body: ChatIn, request: Request) -> dict:
         "escalation": result.escalation,
         "limit_reached": len(session["messages"]) + len(result.new_messages) >= settings.max_session_messages,
         "no_answer": result.stop_reason == "STOP" and _no_answer(result.reply, kn.block),
+        "retryable": result.stop_reason in ("ERROR", "DISABLED"),
     }
 
 
@@ -175,6 +180,8 @@ def health(check: int = 0, llm: int = 0) -> dict:
         "records": knowledge.kb.stats().get("libya_zakat_fund", {}).get("records", 0),
         "sessions": sessions.count(),
         "proxy": bool(os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")),
+        "fallback_model": settings.gemini_fallback_model or None,
+        "retries": settings.llm_retries,
     }
     if check or llm:
         out["llm_check"] = globals()["llm"].probe() if hasattr(globals()["llm"], "probe") else None
