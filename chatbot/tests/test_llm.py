@@ -130,3 +130,11 @@ def test_probe_reports_google_error_details():
     assert make(Script([text_resp("جاهز")])).probe()["ok"] is True
     bad = make(Script([GeminiError(400, '{"error": {"message": "User location is not supported for the API use."}}')])).probe()
     assert bad["ok"] is False and bad["status"] == 400 and "location" in bad["error"]
+
+
+def test_fallback_chain_is_comma_separated_and_deduplicated():
+    chat = make(Script([]), GEMINI_FALLBACK_MODEL="gemini-3.6-flash, gemini-3.1-pro-preview,gemini-3.8-flash")
+    assert chat._models() == ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    script = Script([GeminiError(503, "busy")] * 6 + [text_resp("من الثالث")])
+    res = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash,gemini-3.1-pro-preview").chat([], "q", lambda n, a: {})
+    assert res.reply == "من الثالث" and script.models[-1] == "gemini-3.1-pro-preview"

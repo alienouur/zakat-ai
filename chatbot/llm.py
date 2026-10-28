@@ -86,8 +86,13 @@ class GeminiChat:
         self._sleep = time.sleep
 
     def _models(self) -> list[str]:
-        fb = self.cfg.gemini_fallback_model
-        return [self.cfg.gemini_model] + ([fb] if fb and fb != self.cfg.gemini_model else [])
+        """Primary model followed by the fallback chain (GEMINI_FALLBACK_MODEL may list several, comma-separated)."""
+        out = [self.cfg.gemini_model]
+        for fb in self.cfg.gemini_fallback_model.split(","):
+            fb = fb.strip()
+            if fb and fb not in out:
+                out.append(fb)
+        return out
 
     def _call(self, body: dict) -> dict:
         """Retries transient failures (503/429/5xx/connection) with 1s, 2s, 4s backoff, then tries the fallback model."""
@@ -105,8 +110,9 @@ class GeminiChat:
                                 f"status {e.status}" if e.status else f"connection ({e})")
                     if attempt < self.cfg.llm_retries:
                         self._sleep(self.cfg.llm_retry_base_seconds * (2 ** (attempt - 1)))
-            if model != self._models()[-1]:
-                log.warning("switching to fallback model %s", self._models()[-1])
+            models = self._models()
+            if model != models[-1]:
+                log.warning("model %s unavailable, switching to fallback %s", model, models[models.index(model) + 1])
         assert last is not None
         raise last
 
