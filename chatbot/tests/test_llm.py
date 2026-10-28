@@ -32,6 +32,7 @@ class Script:
 
 def make(script, **env):
     import os
+    env.setdefault("GEMINI_MODEL", "gemini-3.6-flash")  # independent of any local .env
     for k, v in env.items():
         os.environ[k] = v
     chat = GeminiChat("sys", DECL, Settings(), transport=script)
