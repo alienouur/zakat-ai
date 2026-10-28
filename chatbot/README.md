@@ -20,7 +20,7 @@ uvicorn chatbot.server:app --host 0.0.0.0 --port 8090
 | المتغير | المعنى |
 |---|---|
 | `GEMINI_API_KEY` | مفتاح Gemini (في الخادم فقط، لا يصل إلى المتصفح) |
-| `GEMINI_MODEL` | اسم النموذج (افتراضيًا `gemini-3.8-flash`) |
+| `GEMINI_MODEL` | اسم النموذج (افتراضيًا `gemini-3.6-flash`) |
 | `COMPLAINTS_EMAIL` | البريد المستلم لكل الطلبات (الشكاوى وطلبات الفتوى الموجّهة إلى مكتب المستشارين الشرعيين)؛ ثابت ولا يأخذه النموذج من المستخدم |
 | `SMTP_HOST/PORT/USER/PASSWORD/FROM/USE_SSL` | إعدادات الإرسال (587 مع STARTTLS أو 465 مع SSL) |
 | `EMAIL_DRY_RUN` | `true` = تُكتب الرسائل في `data/outbox/*.eml` بدل إرسالها |

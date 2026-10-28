@@ -113,27 +113,27 @@ def test_transient_errors_retry_in_rounds_with_backoff():
 def test_fast_failover_switches_to_fallback_immediately():
     # primary fails once -> fallback tried at once, no sleep
     script = Script([GeminiError(503, "busy"), text_resp("من الاحتياطي")])
-    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash")
+    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.8-flash")
     res = chat.chat([], "q", lambda n, a: {})
-    assert res.reply == "من الاحتياطي" and script.models == ["gemini-3.8-flash", "gemini-3.6-flash"] and chat.slept == []
+    assert res.reply == "من الاحتياطي" and script.models == ["gemini-3.6-flash", "gemini-3.8-flash"] and chat.slept == []
     # timeout counts as transient too
     script = Script([GeminiError(None, "ReadTimeout"), text_resp("ok")])
-    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash")
+    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.8-flash")
     assert chat.chat([], "q", lambda n, a: {}).reply == "ok" and chat.slept == []
     # both fail -> wait 0.5s -> second round alternates again; 4 attempts total then busy message
     script = Script([GeminiError(503, "busy")] * 3 + [text_resp("الجولة الثانية")])
-    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash")
+    chat = make(script, GEMINI_FALLBACK_MODEL="gemini-3.8-flash")
     res = chat.chat([], "q", lambda n, a: {})
     assert res.reply == "الجولة الثانية" and chat.slept == [0.5]
-    assert script.models == ["gemini-3.8-flash", "gemini-3.6-flash"] * 2
+    assert script.models == ["gemini-3.6-flash", "gemini-3.8-flash"] * 2
     script = Script([GeminiError(503, "busy")] * 4)
-    res = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash").chat([], "q", lambda n, a: {})
+    res = make(script, GEMINI_FALLBACK_MODEL="gemini-3.8-flash").chat([], "q", lambda n, a: {})
     assert "مزدحمة" in res.reply and len(script.bodies) == 4
 
 
 def test_fallback_chain_is_comma_separated_and_deduplicated():
-    chat = make(Script([]), GEMINI_FALLBACK_MODEL="gemini-3.6-flash, gemini-3.1-pro-preview,gemini-3.8-flash")
-    assert chat._models() == ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    chat = make(Script([]), GEMINI_FALLBACK_MODEL="gemini-3.8-flash, gemini-3.1-pro-preview,gemini-3.6-flash")
+    assert chat._models() == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-pro-preview"]
     script = Script([GeminiError(503, "busy")] * 2 + [text_resp("من الثالث")])
-    res = make(script, GEMINI_FALLBACK_MODEL="gemini-3.6-flash,gemini-3.1-pro-preview").chat([], "q", lambda n, a: {})
-    assert res.reply == "من الثالث" and script.models == ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    res = make(script, GEMINI_FALLBACK_MODEL="gemini-3.8-flash,gemini-3.1-pro-preview").chat([], "q", lambda n, a: {})
+    assert res.reply == "من الثالث" and script.models == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-pro-preview"]

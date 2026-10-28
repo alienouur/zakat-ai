@@ -25,7 +25,7 @@ def _int(name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: str = field(default_factory=lambda: os.environ.get("GEMINI_API_KEY", "").strip())
-    gemini_model: str = field(default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip())
+    gemini_model: str = field(default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-3.6-flash").strip())
     llm_max_output_tokens: int = field(default_factory=lambda: _int("LLM_MAX_OUTPUT_TOKENS", 4096))
     llm_timeout_seconds: float = field(default_factory=lambda: float(os.environ.get("LLM_TIMEOUT_SECONDS", "25")))
     llm_connect_timeout_seconds: float = field(default_factory=lambda: float(os.environ.get("LLM_CONNECT_TIMEOUT_SECONDS", "10")))
