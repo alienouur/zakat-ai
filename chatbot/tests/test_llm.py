@@ -37,7 +37,8 @@ def make(script, **env):
     chat = GeminiChat("sys", DECL, Settings(), transport=script)
     for k in env:
         os.environ.pop(k, None)
-    chat._sleep = lambda s: chat.__dict__.setdefault("slept", []).append(s)
+    chat.slept = []
+    chat._sleep = chat.slept.append
     return chat
 
 
